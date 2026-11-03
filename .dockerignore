@@ -1,0 +1,10 @@
+.git
+.vs
+**/bin
+**/obj
+.env
+.env.*
+**/appsettings*.json
+**/secrets.json
+*.zip
+*.tar

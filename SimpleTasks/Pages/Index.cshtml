@@ -1,0 +1,67 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Your tasks";
+    var completedCount = Model.Tasks.Count(task => task.IsCompleted);
+    var remainingCount = Model.Tasks.Count - completedCount;
+}
+
+<header class="page-header">
+    <p class="eyebrow">A LITTLE ROOM TO FOCUS</p>
+    <h1>Simple Tasks<span>.</span></h1>
+    <p class="subtitle">Write it down. Make a little progress.</p>
+</header>
+
+<section class="card" aria-labelledby="add-heading">
+    <h2 id="add-heading">What's next?</h2>
+    <form method="post" asp-page-handler="Add">
+        <label asp-for="Title">Task title</label>
+        <div class="add-row">
+            <input asp-for="Title" placeholder="e.g. Finish the database lesson" maxlength="100" required />
+            <button class="button primary" type="submit">Add task</button>
+        </div>
+        <span asp-validation-for="Title" class="validation" role="alert"></span>
+    </form>
+</section>
+
+<section class="card task-card" aria-labelledby="list-heading">
+    <div class="list-header">
+        <h2 id="list-heading">Your tasks</h2>
+        <p class="counts">@remainingCount open <span aria-hidden="true">/</span> @completedCount done</p>
+    </div>
+
+    @if (Model.Tasks.Count == 0)
+    {
+        <div class="empty-state">
+            <p class="empty-title">A fresh start.</p>
+            <p>Add your first task above.</p>
+        </div>
+    }
+    else
+    {
+        <ul class="task-list">
+            @foreach (var task in Model.Tasks)
+            {
+                <li class="task-row @(task.IsCompleted ? "completed" : "")">
+                    <div class="task-content">
+                        <p class="task-title">@task.Title</p>
+                        <p class="task-meta">Added @task.CreatedAt.ToString("dd MMM yyyy") (UTC)</p>
+                    </div>
+                    <div class="task-actions">
+                        <form method="post" asp-page-handler="Toggle">
+                            <input type="hidden" name="id" value="@task.Id" />
+                            <button class="button secondary" type="submit"
+                                    aria-label="@(task.IsCompleted ? "Mark incomplete: " : "Complete: ")@task.Title">
+                                @(task.IsCompleted ? "Undo" : "Done")
+                            </button>
+                        </form>
+                        <form method="post" asp-page-handler="Delete">
+                            <input type="hidden" name="id" value="@task.Id" />
+                            <button class="button delete" type="submit" aria-label="Delete: @task.Title">Delete</button>
+                        </form>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</section>

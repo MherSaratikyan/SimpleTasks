@@ -36,7 +36,7 @@
 
     <div class="ticket-layout">
         <div class="ticket-main">
-            <form method="post" class="stack" action="@Post("Save")" hx-post="@Post("Save")" hx-target="#panel" hx-disable="@(!Model.Panel)">
+            <form method="post" asp-antiforgery="true" class="stack" action="@Post("Save")" hx-post="@Post("Save")" hx-target="#panel" hx-disable="@(!Model.Panel)">
                 <fieldset disabled="@(!canEdit)" class="plain">
                     <label>Status
                         <select name="Status" class="status-select">
@@ -67,7 +67,7 @@
             }
             @if (canEdit)
             {
-                <form method="post" class="stack" action="@Post("Comment")" hx-post="@Post("Comment")" hx-target="#panel" hx-disable="@(!Model.Panel)">
+                <form method="post" asp-antiforgery="true" class="stack" action="@Post("Comment")" hx-post="@Post("Comment")" hx-target="#panel" hx-disable="@(!Model.Panel)">
                     <label>Add a comment
                         <textarea name="body" rows="3" required maxlength="10000"></textarea>
                     </label>
@@ -99,7 +99,7 @@
             <p>@card.Logged logged@(card.Estimate is null ? "" : $" of {card.Estimate}")</p>
             @if (canEdit)
             {
-                <form method="post" class="stack" action="@Post("LogWork")" hx-post="@Post("LogWork")" hx-target="#panel" hx-disable="@(!Model.Panel)">
+                <form method="post" asp-antiforgery="true" class="stack" action="@Post("LogWork")" hx-post="@Post("LogWork")" hx-target="#panel" hx-disable="@(!Model.Panel)">
                     <label>Log time
                         <input name="time" required placeholder="45m, 2h" />
                     </label>
@@ -124,13 +124,13 @@
                 <h2>Remind me</h2>
                 @foreach (var reminder in Model.Reminders)
                 {
-                    <form method="post" class="reminder" action="@Post("DeleteReminder")" hx-post="@Post("DeleteReminder")" hx-target="#panel" hx-disable="@(!Model.Panel)">
+                    <form method="post" asp-antiforgery="true" class="reminder" action="@Post("DeleteReminder")" hx-post="@Post("DeleteReminder")" hx-target="#panel" hx-disable="@(!Model.Panel)">
                         <input type="hidden" name="id" value="@reminder.Id" />
                         <span>@Time.Show(reminder.RemindAt)@(reminder.Note is null ? "" : $": {reminder.Note}")</span>
                         <button class="link-button" type="submit">Cancel</button>
                     </form>
                 }
-                <form method="post" class="stack" action="@Post("Reminder")" hx-post="@Post("Reminder")" hx-target="#panel" hx-disable="@(!Model.Panel)">
+                <form method="post" asp-antiforgery="true" class="stack" action="@Post("Reminder")" hx-post="@Post("Reminder")" hx-target="#panel" hx-disable="@(!Model.Panel)">
                     <label>When
                         <input name="remindAt" type="datetime-local" required />
                     </label>
@@ -150,7 +150,7 @@
 
             @if (canAdminister && card.DeletedAt is null)
             {
-                <form method="post" action="/tickets/@card.Key?handler=Delete">
+                <form method="post" asp-antiforgery="true" action="/tickets/@card.Key?handler=Delete">
                     <button class="button button-danger" type="submit">Delete ticket</button>
                 </form>
             }

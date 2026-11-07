@@ -12,13 +12,21 @@ var sharedSettings = new ConfigurationBuilder().AddJsonFile(settingsFile, option
 builder.Configuration["Parameters:internal-api-key"] = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 var internalKey = builder.AddParameter("internal-api-key", secret: true);
 
-var messaging = builder.AddRabbitMQ("messaging").WithManagementPlugin().WithDataVolume("simpletasks-rabbitmq");
+// UseContainerSql gives a throwaway run: its own SQL Server and broker, nothing kept.
+var throwaway = builder.Configuration.GetValue<bool>("UseContainerSql");
 
-ReferenceExpression sqlConnection;
-if (builder.Configuration.GetValue<bool>("UseContainerSql"))
+var messaging = builder.AddRabbitMQ("messaging").WithManagementPlugin();
+if (!throwaway)
 {
-    // Used by the end-to-end test so it never touches your real server.
-    sqlConnection = builder.AddSqlServer("sql").Resource.ConnectionStringExpression;
+    messaging.WithDataVolume("simpletasks-rabbitmq");
+}
+
+IResourceBuilder<SqlServerServerResource>? containerSql = null;
+ReferenceExpression sqlConnection;
+if (throwaway)
+{
+    containerSql = builder.AddSqlServer("sql");
+    sqlConnection = containerSql.Resource.ConnectionStringExpression;
 }
 else
 {
@@ -28,19 +36,23 @@ else
     sqlConnection = ReferenceExpression.Create($"{parameter}");
 }
 
-var identity = builder.AddProject<Projects.SimpleTasks_Identity>("identity")
-    .WithEnvironment("ConnectionStrings__DefaultConnection", sqlConnection)
+IResourceBuilder<ProjectResource> WithSql(IResourceBuilder<ProjectResource> project)
+{
+    project.WithEnvironment("ConnectionStrings__DefaultConnection", sqlConnection);
+    return containerSql is null ? project : project.WaitFor(containerSql);
+}
+
+var identity = WithSql(builder.AddProject<Projects.SimpleTasks_Identity>("identity"))
     .WithEnvironment("Internal__ApiKey", internalKey)
     .WithEnvironment("Identity__FirstAdminEmail", builder.Configuration["FirstAdminEmail"] ?? string.Empty)
     .WithReference(messaging).WaitFor(messaging);
 
-var work = builder.AddProject<Projects.SimpleTasks_Work>("work")
-    .WithEnvironment("ConnectionStrings__DefaultConnection", sqlConnection)
+var work = WithSql(builder.AddProject<Projects.SimpleTasks_Work>("work"))
     .WithReference(messaging).WaitFor(messaging)
     .WithReference(identity).WaitFor(identity);
 
-var notifications = builder.AddProject<Projects.SimpleTasks_Notifications>("notifications")
-    .WithEnvironment("ConnectionStrings__DefaultConnection", sqlConnection)
+var notifications = WithSql(builder.AddProject<Projects.SimpleTasks_Notifications>("notifications"))
+    .WithEnvironment("Reminders__IntervalSeconds", throwaway ? "5" : "60")
     .WithReference(messaging).WaitFor(messaging)
     .WithReference(identity).WaitFor(identity);
 

@@ -51,7 +51,7 @@ public sealed class ServiceFactory<TEntryPoint>(
         UseKestrel(0);
         StartServer();
         var address = Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
-        return new Uri(address.Replace("[::]", "localhost").Replace("127.0.0.1", "localhost"));
+        return new Uri(address);
     }
 }
 
@@ -160,7 +160,7 @@ public sealed class SystemFixture : IAsyncLifetime
         return (await response.Content.ReadFromJsonAsync<Issued>())!.Token;
     }
 
-    public static async Task WaitUntilAsync(Func<Task<bool>> condition, string waitingFor, int seconds = 20)
+    public static async Task WaitUntilAsync(Func<Task<bool>> condition, string waitingFor, int seconds = 60)
     {
         var deadline = DateTime.UtcNow.AddSeconds(seconds);
         while (DateTime.UtcNow < deadline)

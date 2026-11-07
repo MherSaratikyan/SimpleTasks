@@ -51,3 +51,22 @@ public class ReminderRulesTests
     public void Shows_the_time_in_the_users_zone() =>
         Assert.StartsWith("07 Nov 2026 12:00", ReminderRules.FormatFor(Now, "UTC"));
 }
+
+public class RetryPolicyTests
+{
+    [Fact]
+    public void Unreadable_messages_are_never_retried()
+    {
+        Assert.False(SimpleTasks.Messaging.RetryPolicy.ShouldRetry(new System.Text.Json.JsonException(), 1));
+        Assert.False(SimpleTasks.Messaging.RetryPolicy.ShouldRetry(new FormatException(), 1));
+    }
+
+    [Fact]
+    public void Other_failures_retry_up_to_the_limit()
+    {
+        var failure = new InvalidOperationException();
+        Assert.True(SimpleTasks.Messaging.RetryPolicy.ShouldRetry(failure, 1));
+        Assert.True(SimpleTasks.Messaging.RetryPolicy.ShouldRetry(failure, SimpleTasks.Messaging.Topology.DeliveryLimit - 1));
+        Assert.False(SimpleTasks.Messaging.RetryPolicy.ShouldRetry(failure, SimpleTasks.Messaging.Topology.DeliveryLimit));
+    }
+}

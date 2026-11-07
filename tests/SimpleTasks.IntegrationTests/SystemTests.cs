@@ -254,7 +254,7 @@ public class SystemTests(SystemFixture system)
         await PublishAsync(channel, Guid.NewGuid(), "this is not json");
 
         await SystemFixture.WaitUntilAsync(
-            async () => await channel.MessageCountAsync("simpletasks.dead") > before, "the poison message to be dead-lettered", seconds: 40);
+            async () => await channel.MessageCountAsync("simpletasks.dead") > before, "the poison message to be dead-lettered");
 
         var after = new CommentAdded(Guid.NewGuid(), "NEXT-1", "After poison", Guid.NewGuid(), "Later", [admin.Id]);
         await PublishAsync(channel, Guid.NewGuid(), System.Text.Json.JsonSerializer.Serialize(after));

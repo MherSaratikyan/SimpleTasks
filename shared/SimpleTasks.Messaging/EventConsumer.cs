@@ -22,6 +22,13 @@ public interface IAfterCommit
     Task RunAsync(CancellationToken ct);
 }
 
+/// <summary>Decides what happens to a failed message, so one bad message can never block the queue behind it.</summary>
+public static class RetryPolicy
+{
+    public static bool ShouldRetry(Exception exception, int attempts) =>
+        exception is not (JsonException or FormatException or ArgumentNullException) && attempts < Topology.DeliveryLimit;
+}
+
 internal sealed record HandlerRegistration(string RoutingKey, Func<IServiceProvider, string, CancellationToken, Task> Invoke);
 
 internal sealed class EventConsumer<TDb>(
@@ -34,6 +41,9 @@ internal sealed class EventConsumer<TDb>(
 {
     private readonly Dictionary<string, HandlerRegistration> _handlers =
         registrations.ToDictionary(registration => registration.RoutingKey);
+
+    // Prefetch is 1, so only one message is ever in flight.
+    private readonly Dictionary<string, int> _attempts = [];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -69,13 +79,26 @@ internal sealed class EventConsumer<TDb>(
         {
             await ProcessAsync(delivery, ct);
             await channel.BasicAckAsync(delivery.DeliveryTag, false, ct);
+            _attempts.Remove(delivery.BasicProperties.MessageId ?? string.Empty);
         }
         catch (Exception exception) when (!ct.IsCancellationRequested)
         {
-            // The queue's delivery limit moves a message that keeps failing to the dead-letter queue.
-            logger.LogError(exception, "Failed to handle {Type} {MessageId}.", delivery.BasicProperties.Type, delivery.BasicProperties.MessageId);
-            await Task.Delay(TimeSpan.FromSeconds(1), ct);
-            await channel.BasicNackAsync(delivery.DeliveryTag, false, requeue: true, ct);
+            var messageId = delivery.BasicProperties.MessageId ?? string.Empty;
+            var attempts = _attempts.GetValueOrDefault(messageId) + 1;
+            var retry = RetryPolicy.ShouldRetry(exception, attempts);
+            logger.LogError(exception, "Failed to handle {RoutingKey} {MessageId} on attempt {Attempt}; {Outcome}.",
+                delivery.RoutingKey, messageId, attempts, retry ? "retrying" : "dead-lettering");
+
+            if (retry)
+            {
+                _attempts[messageId] = attempts;
+                await Task.Delay(TimeSpan.FromSeconds(1), ct);
+            }
+            else
+            {
+                _attempts.Remove(messageId);
+            }
+            await channel.BasicNackAsync(delivery.DeliveryTag, false, requeue: retry, ct);
         }
     }
 

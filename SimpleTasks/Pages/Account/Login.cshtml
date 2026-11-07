@@ -1,0 +1,37 @@
+@page
+@model SimpleTasks.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+
+<div class="login-card">
+    <h1>Sign in to Simple Tasks</h1>
+    <p>Simple Tasks is invite only. Use the Google account your invite was sent to.</p>
+
+    @if (Model.GoogleEnabled)
+    {
+        <form method="post" asp-page-handler="Google">
+            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+            <button class="button button-google" type="submit">Continue with Google</button>
+        </form>
+    }
+    else
+    {
+        <p class="notice">Google sign-in isn't set up yet. See <code>docs/setup-google.md</code>.</p>
+    }
+
+    @if (Model.DevUsers.Count > 0)
+    {
+        <hr />
+        <h2>Development sign-in</h2>
+        <p class="hint">Only available in the Development environment.</p>
+        @foreach (var user in Model.DevUsers)
+        {
+            <form method="post" asp-page-handler="Dev">
+                <input type="hidden" name="email" value="@user.Email" />
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                <button class="button" type="submit">@user.Email @(user.IsSiteAdmin ? "(Site Admin)" : "")</button>
+            </form>
+        }
+    }
+</div>

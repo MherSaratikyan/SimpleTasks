@@ -1,0 +1,70 @@
+@page "/admin/users"
+@model SimpleTasks.Pages.Admin.UsersModel
+@{
+    ViewData["Title"] = "People";
+}
+
+<div class="page-title"><h1>People</h1></div>
+
+<form method="post" asp-page-handler="Invite" class="inline-form">
+    <label for="email">Invite by Google email</label>
+    <input id="email" name="email" type="email" required placeholder="name@gmail.com" />
+    <button class="button primary" type="submit">Send invite</button>
+</form>
+
+<table class="issue-table">
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var user in Model.Users)
+        {
+            <tr>
+                <td>@user.DisplayName</td>
+                <td>@user.Email</td>
+                <td>@(user.IsSiteAdmin ? "Site Admin" : "User")</td>
+                <td><span class="lozenge @(user.IsActive ? "lozenge-done" : "lozenge-todo")">@(user.IsActive ? "Active" : "Deactivated")</span></td>
+                <td>
+                    <form method="post" asp-page-handler="Active">
+                        <input type="hidden" name="id" value="@user.Id" />
+                        <input type="hidden" name="isActive" value="@((!user.IsActive).ToString())" />
+                        <button class="button" type="submit">@(user.IsActive ? "Deactivate" : "Reactivate")</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Invites</h2>
+@if (Model.Invites.Count == 0)
+{
+    <p class="hint">No invites yet.</p>
+}
+else
+{
+    <table class="issue-table">
+        <thead><tr><th>Email</th><th>Project</th><th>Status</th></tr></thead>
+        <tbody>
+            @foreach (var invite in Model.Invites)
+            {
+                <tr>
+                    <td>@invite.Email</td>
+                    <td>@(invite.ProjectName ?? "None")</td>
+                    <td>
+                        @if (invite.AcceptedAt is not null)
+                        {
+                            @:Accepted
+                        }
+                        else if (invite.ExpiresAt < DateTime.UtcNow)
+                        {
+                            @:Expired
+                        }
+                        else
+                        {
+                            @:Expires @Time.ShowDate(invite.ExpiresAt)
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

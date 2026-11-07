@@ -1,0 +1,54 @@
+@model SimpleTasks.Pages.Tickets.TicketFieldsView
+<label>Summary
+    <input name="Form.Title" value="@Model.Title" required maxlength="255" />
+</label>
+<label>Description
+    <textarea name="Form.Description" rows="5">@Model.Description</textarea>
+</label>
+<div class="field-grid">
+    <label>Type
+        <select name="Form.Type">
+            @foreach (var type in Enum.GetValues<TicketType>())
+            {
+                <option value="@type" selected="@(type == Model.Type)">@type</option>
+            }
+        </select>
+    </label>
+    <label>Priority
+        <select name="Form.Priority">
+            @foreach (var priority in Enum.GetValues<TicketPriority>())
+            {
+                <option value="@priority" selected="@(priority == Model.Priority)">@priority</option>
+            }
+        </select>
+    </label>
+    <label>Assignee
+        <select name="Form.AssigneeId">
+            <option value="">Unassigned</option>
+            @foreach (var member in Model.Members)
+            {
+                <option value="@member.UserId" selected="@(member.UserId == Model.AssigneeId)">@member.DisplayName</option>
+            }
+        </select>
+    </label>
+    <label>Estimate
+        <input name="Form.Estimate" value="@Model.Estimate" placeholder="2h, 1d 4h" />
+    </label>
+    <label>Due date
+        <input name="Form.DueAt" type="datetime-local" value="@Time.ToInput(Model.DueAt)" />
+    </label>
+</div>
+<fieldset class="label-picker">
+    <legend>Labels</legend>
+    @if (Model.Labels.Count == 0)
+    {
+        <span class="hint">No labels yet. Project Admins can add them in project settings.</span>
+    }
+    @foreach (var label in Model.Labels)
+    {
+        <label class="check">
+            <input type="checkbox" name="Form.LabelIds" value="@label.Id" checked="@Model.SelectedLabels.Contains(label.Id)" />
+            <span class="label" style="--label:@label.Color">@label.Name</span>
+        </label>
+    }
+</fieldset>

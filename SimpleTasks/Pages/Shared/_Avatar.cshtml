@@ -1,0 +1,13 @@
+@model UserRef?
+@if (Model?.AvatarUrl is { } url)
+{
+    <img class="avatar" src="@url" alt="" title="@Model.DisplayName" referrerpolicy="no-referrer" />
+}
+else if (Model is not null)
+{
+    <span class="avatar" title="@Model.DisplayName">@Ui.Initials(Model.DisplayName)</span>
+}
+else
+{
+    <span class="avatar avatar-empty" title="Unassigned" aria-label="Unassigned"></span>
+}

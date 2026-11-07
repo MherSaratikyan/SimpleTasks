@@ -1,0 +1,23 @@
+@page "/projects/{key}/tickets/new"
+@model SimpleTasks.Pages.Tickets.NewModel
+@{
+    ViewData["Title"] = "Create ticket";
+    ViewData["Project"] = Model.Project;
+    if (Model.Panel)
+    {
+        Layout = null;
+    }
+    var fields = new SimpleTasks.Pages.Tickets.TicketFieldsView(null, null, TicketType.Task, TicketPriority.Medium, null, null, null, [], Model.Members, Model.Labels);
+}
+
+<div class="ticket">
+    @if (Model.Panel)
+    {
+        <button type="button" class="panel-close" aria-label="Close">&times;</button>
+    }
+    <h1>Create ticket in @Model.Project.Name</h1>
+    <form method="post" class="stack" hx-post="@Url.Page("/Tickets/New", new { key = Model.Project.Key, panel = Model.Panel })" hx-target="#panel" hx-disable="@(!Model.Panel)">
+        <partial name="_TicketFields" model="fields" />
+        <button class="button primary" type="submit">Create</button>
+    </form>
+</div>

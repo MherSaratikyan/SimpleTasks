@@ -1,9 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
-
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="MailKit" />
+    <ProjectReference Include="..\..\shared\SimpleTasks.Contracts\SimpleTasks.Contracts.csproj" />
+    <ProjectReference Include="..\..\shared\SimpleTasks.Messaging\SimpleTasks.Messaging.csproj" />
+    <ProjectReference Include="..\..\shared\SimpleTasks.ServiceDefaults\SimpleTasks.ServiceDefaults.csproj" />
+  </ItemGroup>
 </Project>

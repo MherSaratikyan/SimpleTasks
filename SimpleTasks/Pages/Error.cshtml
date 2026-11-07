@@ -1,9 +1,11 @@
 @page
+@model ErrorModel
 @{
-    ViewData["Title"] = "Something went wrong";
+    ViewData["Title"] = Model.Heading;
 }
-<section class="card">
-    <h1>Something went wrong.</h1>
-    <p>Please try again. If the problem continues, check the application's logs.</p>
-    <a asp-page="/Index">Return to your tasks</a>
-</section>
+
+<div class="empty">
+    <h1>@Model.Heading</h1>
+    <p>@Model.Message</p>
+    <p><a href="/">Back to your work</a></p>
+</div>

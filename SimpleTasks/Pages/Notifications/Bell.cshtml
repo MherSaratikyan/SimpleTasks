@@ -1,0 +1,46 @@
+@page "/notifications/bell"
+@model SimpleTasks.Pages.Notifications.BellModel
+@{
+    Layout = null;
+}
+<details class="menu bell">
+    <summary aria-label="Notifications: @(Model.Feed?.Unread ?? 0) unread">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.4-2h-4.8A2.5 2.5 0 0 0 12 22Zm7-6v-5a7 7 0 0 0-5.5-6.8V3.5a1.5 1.5 0 0 0-3 0v.7A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z" /></svg>
+        @if (Model.Feed is { Unread: > 0 } unread)
+        {
+            <span class="bell-count">@(unread.Unread > 99 ? "99+" : unread.Unread)</span>
+        }
+    </summary>
+    <div class="menu-body bell-body">
+        <div class="bell-header">
+            <strong>Notifications</strong>
+            @if (Model.Feed is { Unread: > 0 })
+            {
+                <form method="post" asp-page-handler="ReadAll"><button type="submit" class="link-button">Mark all read</button></form>
+            }
+        </div>
+        @if (Model.Feed is null)
+        {
+            <p class="hint">Notifications are unavailable right now.</p>
+        }
+        else if (Model.Feed.Items.Count == 0)
+        {
+            <p class="hint">You're all caught up.</p>
+        }
+        else
+        {
+            @foreach (var item in Model.Feed.Items)
+            {
+                <form method="post" asp-page-handler="Open">
+                    <input type="hidden" name="id" value="@item.Id" />
+                    <input type="hidden" name="url" value="@item.Url" />
+                    <button type="submit" class="bell-item @(item.IsRead ? "" : "unread")">
+                        <strong>@item.Title</strong>
+                        <span>@item.Body</span>
+                        <small>@Time.Show(item.CreatedAt)</small>
+                    </button>
+                </form>
+            }
+        }
+    </div>
+</details>

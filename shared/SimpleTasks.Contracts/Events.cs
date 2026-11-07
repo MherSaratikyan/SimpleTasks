@@ -49,3 +49,17 @@ public enum EstimateAlertLevel
 public sealed record EstimateThresholdCrossed(
     Guid TicketId, string Key, string Title, EstimateAlertLevel Level, int LoggedMinutes, int EstimateMinutes,
     IReadOnlyList<Guid> Recipients) : IIntegrationEvent;
+
+public enum TicketStatus { ToDo = 0, InProgress = 1, InReview = 2, Done = 3 }
+public enum TicketType { Task = 0, Bug = 1, Story = 2 }
+public enum TicketPriority { Lowest = 0, Low = 1, Medium = 2, High = 3, Highest = 4 }
+
+public enum NotificationType
+{
+    Assigned = 0,
+    Comment = 1,
+    EstimateChanged = 2,
+    EstimateAlert = 3,
+    DueReminder = 4,
+    CustomReminder = 5
+}

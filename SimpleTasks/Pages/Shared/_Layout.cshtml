@@ -1,3 +1,10 @@
+@using System.Security.Claims
+@{
+    var project = ViewData["Project"] as ProjectView;
+    var section = ViewData["Section"] as string;
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    var me = new UserRef(Guid.Empty, User.FindFirstValue(ClaimTypes.Name) ?? "", User.FindFirstValue(AppClaims.Avatar));
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,10 +12,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] - Simple Tasks</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <meta name="request-token" content="@(Context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>().GetAndStoreTokens(Context).RequestToken)" />
 </head>
 <body>
-    <main class="container">
-        @RenderBody()
-    </main>
+    <header class="topbar">
+        <a class="brand" href="/">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 4h16v4H4zM4 10h10v4H4zM4 16h13v4H4z" /></svg>
+            Simple Tasks
+        </a>
+        @if (signedIn)
+        {
+            <nav class="topnav" aria-label="Main">
+                <a href="/">Your work</a>
+                <a href="/projects">Projects</a>
+                @if (User.HasClaim(AppClaims.SiteAdmin, "true"))
+                {
+                    <a href="/admin/users">People</a>
+                }
+            </nav>
+            <span class="spacer"></span>
+            <div id="bell" hx-get="/notifications/bell" hx-trigger="load, notify from:body" hx-swap="innerHTML"></div>
+            <details class="menu">
+                <summary aria-label="Your account"><partial name="_Avatar" model="me" /></summary>
+                <div class="menu-body">
+                    <p class="menu-name">@me.DisplayName</p>
+                    <a href="/settings">Settings</a>
+                    <form method="post" asp-page="/Account/Logout"><button type="submit" class="link-button">Sign out</button></form>
+                </div>
+            </details>
+        }
+    </header>
+
+    <div class="shell">
+        @if (project is not null)
+        {
+            <aside class="sidebar" aria-label="Project">
+                <div class="sidebar-project">
+                    <span class="project-badge">@project.Key[..1]</span>
+                    <div>
+                        <strong>@project.Name</strong>
+                        <small>@project.Role.Name()</small>
+                    </div>
+                </div>
+                <nav>
+                    <a href="/projects/@project.Key/board" class="@(section == "board" ? "active" : "")">Board</a>
+                    <a href="/projects/@project.Key/backlog" class="@(section == "backlog" ? "active" : "")">Backlog</a>
+                    <a href="/projects/@project.Key/settings" class="@(section == "settings" ? "active" : "")">Project settings</a>
+                </nav>
+            </aside>
+        }
+        <main class="content">
+            @if (Model is PageBase page)
+            {
+                <partial name="_Toasts" model="page" />
+            }
+            @RenderBody()
+        </main>
+    </div>
+
+    <div id="panel-backdrop" hidden></div>
+    <aside id="panel" class="panel" aria-label="Ticket" hidden></aside>
+
+    <script src="~/lib/htmx.min.js"></script>
+    <script src="~/lib/Sortable.min.js"></script>
+    <script src="~/lib/signalr.min.js"></script>
+    <script src="~/js/app.js" asp-append-version="true"></script>
 </body>
 </html>

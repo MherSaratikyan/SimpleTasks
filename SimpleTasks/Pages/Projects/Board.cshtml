@@ -1,0 +1,59 @@
+@page "/projects/{key}/board"
+@model SimpleTasks.Pages.Projects.BoardModel
+@{
+    ViewData["Title"] = $"{Model.Project.Name} board";
+    ViewData["Project"] = Model.Project;
+    ViewData["Section"] = "board";
+}
+
+<div class="page-title"><h1>@Model.Project.Name board</h1></div>
+<partial name="_Filters" model="Model" />
+
+<div class="board" data-can-edit="@Model.CanEdit.ToString().ToLowerInvariant()" data-move-url="@Url.Page("/Projects/Board", "Move", new { key = Model.Project.Key })">
+    @foreach (var status in Ui.Statuses)
+    {
+        var cards = Model.Tickets.Where(ticket => ticket.Status == status).ToList();
+        <section class="column" aria-label="@status.Name()">
+            <h2>@status.Name() <span>@cards.Count</span></h2>
+            <div class="column-cards" data-status="@((int)status)">
+                @foreach (var ticket in cards)
+                {
+                    <article class="card" data-key="@ticket.Key">
+                        <a class="card-title" href="/tickets/@ticket.Key"
+                           hx-get="/tickets/@ticket.Key?panel=true" hx-target="#panel">@ticket.Title</a>
+                        @if (ticket.Labels.Count > 0)
+                        {
+                            <div class="labels">
+                                @foreach (var label in ticket.Labels)
+                                {
+                                    <span class="label" style="--label:@label.Color">@label.Name</span>
+                                }
+                            </div>
+                        }
+                        <div class="card-meta">
+                            @if (ticket.DueAt is { } due)
+                            {
+                                <span class="due @(due < DateTime.UtcNow && ticket.Status != TicketStatus.Done ? "overdue" : "")">@Time.ShowDate(due)</span>
+                            }
+                            @if (ticket.Estimate is null)
+                            {
+                                <span class="chip chip-warn">No estimate</span>
+                            }
+                            else
+                            {
+                                <span class="chip @(ticket.LoggedMinutes > ticket.EstimateMinutes ? "chip-danger" : "")">@ticket.Logged / @ticket.Estimate</span>
+                            }
+                        </div>
+                        <div class="card-footer">
+                            <partial name="_TypeIcon" model="ticket.Type" />
+                            <partial name="_PriorityIcon" model="ticket.Priority" />
+                            <span class="card-key">@ticket.Key</span>
+                            <span class="spacer"></span>
+                            <partial name="_Avatar" model="ticket.Assignee" />
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+    }
+</div>

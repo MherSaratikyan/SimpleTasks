@@ -1,0 +1,29 @@
+@page "/settings"
+@model SimpleTasks.Pages.Settings.IndexModel
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<div class="page-title"><h1>Settings</h1></div>
+
+<form method="post" class="form-card">
+    <h2>Time zone</h2>
+    <label for="timeZone">Dates and reminders use this time zone.</label>
+    <select id="timeZone" name="TimeZoneId">
+        @foreach (var zone in Model.TimeZones)
+        {
+            <option value="@zone.Id" selected="@(zone.Id == Model.TimeZoneId)">@zone.DisplayName</option>
+        }
+    </select>
+
+    <h2>Email me when</h2>
+    <p class="hint">These always appear in the bell. This only controls email.</p>
+    @foreach (var preference in Model.Preferences)
+    {
+        <label class="check">
+            <input type="checkbox" name="EmailTypes" value="@preference.Type" checked="@preference.Email" />
+            @preference.Type.Name()
+        </label>
+    }
+    <button class="button primary" type="submit">Save</button>
+</form>

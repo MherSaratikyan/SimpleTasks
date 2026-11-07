@@ -1,0 +1,9 @@
+@model PageBase
+@if (Model.Toast is not null)
+{
+    <div class="toast" role="status">@Model.Toast</div>
+}
+@if (Model.ToastError is not null)
+{
+    <div class="toast toast-error" role="alert">@Model.ToastError</div>
+}

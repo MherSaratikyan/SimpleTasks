@@ -1,0 +1,48 @@
+@page "/projects/{key}/backlog"
+@model SimpleTasks.Pages.Projects.BacklogModel
+@{
+    ViewData["Title"] = $"{Model.Project.Name} backlog";
+    ViewData["Project"] = Model.Project;
+    ViewData["Section"] = "backlog";
+    var tickets = Model.Tickets.OrderBy(ticket => ticket.Status == TicketStatus.Done).ThenBy(ticket => ticket.Rank).ToList();
+}
+
+<div class="page-title"><h1>Backlog</h1></div>
+<partial name="_Filters" model="Model" />
+
+@if (tickets.Count == 0)
+{
+    <div class="empty">
+        <h2>No tickets here</h2>
+        <p>Create a ticket, or clear your filters.</p>
+    </div>
+}
+else
+{
+    <table class="issue-table">
+        <thead>
+            <tr><th>Type</th><th>Key</th><th>Summary</th><th>Labels</th><th>Status</th><th>Priority</th><th>Estimate</th><th>Due</th><th>Assignee</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var ticket in tickets)
+            {
+                <tr>
+                    <td><partial name="_TypeIcon" model="ticket.Type" /></td>
+                    <td><a href="/tickets/@ticket.Key" hx-get="/tickets/@ticket.Key?panel=true" hx-target="#panel">@ticket.Key</a></td>
+                    <td>@ticket.Title</td>
+                    <td>
+                        @foreach (var label in ticket.Labels)
+                        {
+                            <span class="label" style="--label:@label.Color">@label.Name</span>
+                        }
+                    </td>
+                    <td><span class="lozenge @ticket.Status.Css()">@ticket.Status.Name()</span></td>
+                    <td><partial name="_PriorityIcon" model="ticket.Priority" /></td>
+                    <td>@(ticket.Estimate is null ? "None" : $"{ticket.Logged} / {ticket.Estimate}")</td>
+                    <td class="@(ticket.DueAt < DateTime.UtcNow && ticket.Status != TicketStatus.Done ? "overdue" : "")">@(ticket.DueAt is { } due ? Time.ShowDate(due) : "")</td>
+                    <td><partial name="_Avatar" model="ticket.Assignee" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

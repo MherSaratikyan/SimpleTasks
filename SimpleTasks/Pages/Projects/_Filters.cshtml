@@ -1,0 +1,40 @@
+@model SimpleTasks.Pages.Projects.TicketListPage
+<form method="get" class="filters" aria-label="Filter tickets">
+    <input type="search" name="q" value="@Model.Q" placeholder="Search tickets" aria-label="Search tickets" />
+    <select name="assignee" aria-label="Assignee">
+        <option value="">Assignee</option>
+        @foreach (var member in Model.Members)
+        {
+            <option value="@member.UserId" selected="@(Model.Assignee == member.UserId)">@member.DisplayName</option>
+        }
+    </select>
+    <select name="label" aria-label="Label">
+        <option value="">Label</option>
+        @foreach (var label in Model.Labels)
+        {
+            <option value="@label.Id" selected="@(Model.Label == label.Id)">@label.Name</option>
+        }
+    </select>
+    <select name="type" aria-label="Type">
+        <option value="">Type</option>
+        @foreach (var type in Enum.GetValues<TicketType>())
+        {
+            <option value="@type" selected="@(Model.Type == type)">@type</option>
+        }
+    </select>
+    <select name="priority" aria-label="Priority">
+        <option value="">Priority</option>
+        @foreach (var priority in Enum.GetValues<TicketPriority>())
+        {
+            <option value="@priority" selected="@(Model.Priority == priority)">@priority</option>
+        }
+    </select>
+    <button class="button" type="submit">Apply</button>
+    <a class="link-button" href="?">Clear</a>
+    <span class="spacer"></span>
+    @if (Model.CanEdit)
+    {
+        <a class="button primary" href="/projects/@Model.Project.Key/tickets/new"
+           hx-get="/projects/@Model.Project.Key/tickets/new?panel=true" hx-target="#panel">Create</a>
+    }
+</form>

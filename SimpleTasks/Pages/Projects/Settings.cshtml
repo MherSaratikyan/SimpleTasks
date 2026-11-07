@@ -1,0 +1,123 @@
+@page "/projects/{key}/settings"
+@model SimpleTasks.Pages.Projects.SettingsModel
+@{
+    ViewData["Title"] = $"{Model.Project.Name} settings";
+    ViewData["Project"] = Model.Project;
+    ViewData["Section"] = "settings";
+    var roles = Enum.GetValues<ProjectRole>().Reverse().ToArray();
+}
+
+<div class="page-title"><h1>Project settings</h1></div>
+
+<h2>People</h2>
+@if (Model.CanAdminister)
+{
+    <form method="post" asp-page-handler="Invite" class="inline-form">
+        <label for="email">Add or invite by Google email</label>
+        <input id="email" name="email" type="email" required placeholder="name@gmail.com" />
+        <label for="role">Role</label>
+        <select id="role" name="role">
+            @foreach (var role in roles)
+            {
+                <option value="@role" selected="@(role == ProjectRole.Member)">@role.Name()</option>
+            }
+        </select>
+        <button class="button primary" type="submit">Add</button>
+    </form>
+}
+
+<table class="issue-table">
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var member in Model.Members)
+        {
+            <tr>
+                <td>@member.DisplayName</td>
+                <td>@member.Email</td>
+                <td>
+                    @if (Model.CanAdminister)
+                    {
+                        <form method="post" asp-page-handler="Role" class="row-form">
+                            <input type="hidden" name="userId" value="@member.UserId" />
+                            <select name="role" aria-label="Role for @member.DisplayName" onchange="this.form.requestSubmit()">
+                                @foreach (var role in roles)
+                                {
+                                    <option value="@role" selected="@(role == member.Role)">@role.Name()</option>
+                                }
+                            </select>
+                        </form>
+                    }
+                    else
+                    {
+                        @member.Role.Name()
+                    }
+                </td>
+                <td>
+                    @if (Model.CanAdminister)
+                    {
+                        <form method="post" asp-page-handler="Remove">
+                            <input type="hidden" name="userId" value="@member.UserId" />
+                            <button class="button" type="submit">Remove</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Labels</h2>
+@if (Model.CanAdminister)
+{
+    <form method="post" asp-page-handler="Label" class="inline-form">
+        <label for="labelName">Name</label>
+        <input id="labelName" name="name" required maxlength="50" placeholder="frontend" />
+        <label for="labelColor">Colour</label>
+        <input id="labelColor" name="color" type="color" value="#0052cc" />
+        <button class="button primary" type="submit">Add label</button>
+    </form>
+}
+<div class="label-list">
+    @foreach (var label in Model.Labels)
+    {
+        <form method="post" asp-page-handler="DeleteLabel">
+            <input type="hidden" name="id" value="@label.Id" />
+            <span class="label" style="--label:@label.Color">@label.Name</span>
+            @if (Model.CanAdminister)
+            {
+                <button class="link-button" type="submit" aria-label="Delete label @label.Name">Delete</button>
+            }
+        </form>
+    }
+</div>
+
+@if (Model.CanAdminister)
+{
+    <h2>Deleted tickets</h2>
+    @if (Model.Deleted.Count == 0)
+    {
+        <p class="hint">Nothing has been deleted.</p>
+    }
+    else
+    {
+        <table class="issue-table">
+            <thead><tr><th>Key</th><th>Summary</th><th>Deleted</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var ticket in Model.Deleted)
+                {
+                    <tr>
+                        <td>@ticket.Key</td>
+                        <td>@ticket.Title</td>
+                        <td>@Time.ShowDate(ticket.DeletedAt!.Value)</td>
+                        <td>
+                            <form method="post" asp-page-handler="Restore">
+                                <input type="hidden" name="ticketKey" value="@ticket.Key" />
+                                <button class="button" type="submit">Restore</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}

@@ -1,0 +1,43 @@
+@page "/projects"
+@model SimpleTasks.Pages.Projects.IndexModel
+@{
+    ViewData["Title"] = "Projects";
+    var isSiteAdmin = User.HasClaim(AppClaims.SiteAdmin, "true");
+}
+
+<div class="page-title"><h1>Projects</h1></div>
+
+@if (isSiteAdmin)
+{
+    <form method="post" class="inline-form">
+        <label for="name">Name</label>
+        <input id="name" name="name" required maxlength="100" placeholder="Website redesign" />
+        <label for="key">Key</label>
+        <input id="key" name="key" required maxlength="10" pattern="[A-Za-z][A-Za-z0-9]{1,9}" placeholder="WEB" />
+        <button class="button primary" type="submit">Create project</button>
+    </form>
+}
+
+@if (Model.Projects.Count == 0)
+{
+    <div class="empty">
+        <h2>No projects yet</h2>
+        <p>@(isSiteAdmin ? "Create your first project above." : "Ask a Project Admin to add you to a project.")</p>
+    </div>
+}
+else
+{
+    <table class="issue-table">
+        <thead><tr><th>Name</th><th>Key</th><th>Your role</th></tr></thead>
+        <tbody>
+            @foreach (var project in Model.Projects)
+            {
+                <tr>
+                    <td><a href="/projects/@project.Key/board">@project.Name</a></td>
+                    <td>@project.Key</td>
+                    <td>@project.Role.Name()</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

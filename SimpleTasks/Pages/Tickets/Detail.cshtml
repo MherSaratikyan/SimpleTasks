@@ -1,0 +1,159 @@
+@page "/tickets/{key}"
+@model SimpleTasks.Pages.Tickets.DetailModel
+@{
+    var ticket = Model.Ticket;
+    var card = ticket.Card;
+    ViewData["Title"] = $"{card.Key} {card.Title}";
+    if (Model.Panel)
+    {
+        Layout = null;
+    }
+    var canEdit = ticket.Role >= ProjectRole.Member && card.DeletedAt is null;
+    var canAdminister = ticket.Role == ProjectRole.Admin;
+    var fields = new SimpleTasks.Pages.Tickets.TicketFieldsView(card.Title, ticket.Description, card.Type, card.Priority, card.Assignee?.Id,
+        card.Estimate, card.DueAt, card.Labels.Select(label => label.Id).ToList(), Model.Members, Model.Labels);
+    var panelArg = Model.Panel ? "?panel=true" : "";
+    string Post(string handler) => $"/tickets/{card.Key}?handler={handler}{(Model.Panel ? "&panel=true" : "")}";
+}
+
+<div class="ticket">
+    @if (Model.Panel)
+    {
+        <partial name="_Toasts" model="Model" />
+        <button type="button" class="panel-close" aria-label="Close">&times;</button>
+    }
+    <p class="crumbs">
+        <a href="/projects/@ticket.ProjectKey/board">@ticket.ProjectName</a> /
+        <partial name="_TypeIcon" model="card.Type" />
+        <a href="/tickets/@card.Key">@card.Key</a>
+    </p>
+    <h1>@card.Title</h1>
+
+    @if (card.DeletedAt is not null)
+    {
+        <p class="notice">This ticket was deleted. Restore it from project settings.</p>
+    }
+
+    <div class="ticket-layout">
+        <div class="ticket-main">
+            <form method="post" class="stack" action="@Post("Save")" hx-post="@Post("Save")" hx-target="#panel" hx-disable="@(!Model.Panel)">
+                <fieldset disabled="@(!canEdit)" class="plain">
+                    <label>Status
+                        <select name="Status" class="status-select">
+                            @foreach (var status in Ui.Statuses)
+                            {
+                                <option value="@status" selected="@(status == card.Status)">@status.Name()</option>
+                            }
+                        </select>
+                    </label>
+                    <partial name="_TicketFields" model="fields" />
+                    @if (canEdit)
+                    {
+                        <button class="button primary" type="submit">Save changes</button>
+                    }
+                </fieldset>
+            </form>
+
+            <h2>Comments</h2>
+            @foreach (var comment in ticket.Comments)
+            {
+                <div class="comment">
+                    <partial name="_Avatar" model="comment.Author" />
+                    <div>
+                        <p class="comment-head"><strong>@(comment.Author?.DisplayName ?? "Unknown user")</strong> <small>@Time.Show(comment.CreatedAt)</small></p>
+                        <p class="comment-body">@comment.Body</p>
+                    </div>
+                </div>
+            }
+            @if (canEdit)
+            {
+                <form method="post" class="stack" action="@Post("Comment")" hx-post="@Post("Comment")" hx-target="#panel" hx-disable="@(!Model.Panel)">
+                    <label>Add a comment
+                        <textarea name="body" rows="3" required maxlength="10000"></textarea>
+                    </label>
+                    <button class="button" type="submit">Comment</button>
+                </form>
+            }
+
+            <h2>Activity</h2>
+            <ul class="activity">
+                @foreach (var entry in ticket.Activity)
+                {
+                    <li><strong>@(entry.Actor?.DisplayName ?? "System")</strong> @entry.Text <small>@Time.Show(entry.CreatedAt)</small></li>
+                }
+            </ul>
+        </div>
+
+        <aside class="ticket-side">
+            <h2>Time tracking</h2>
+            @if (card.EstimateMinutes is null)
+            {
+                <p class="chip chip-warn">No estimate</p>
+            }
+            else
+            {
+                <div class="progress @(card.LoggedMinutes > card.EstimateMinutes ? "progress-over" : "")" role="img" aria-label="@Ui.PercentUsed(card)% of estimate used">
+                    <span style="width:@Ui.PercentUsed(card)%"></span>
+                </div>
+            }
+            <p>@card.Logged logged@(card.Estimate is null ? "" : $" of {card.Estimate}")</p>
+            @if (canEdit)
+            {
+                <form method="post" class="stack" action="@Post("LogWork")" hx-post="@Post("LogWork")" hx-target="#panel" hx-disable="@(!Model.Panel)">
+                    <label>Log time
+                        <input name="time" required placeholder="45m, 2h" />
+                    </label>
+                    <label>Note
+                        <input name="note" maxlength="500" />
+                    </label>
+                    <button class="button" type="submit">Log work</button>
+                </form>
+            }
+            @if (ticket.WorkLogs.Count > 0)
+            {
+                <ul class="activity">
+                    @foreach (var log in ticket.WorkLogs)
+                    {
+                        <li><strong>@log.Time</strong> by @(log.User?.DisplayName ?? "Unknown user")@(log.Note is null ? "" : $": {log.Note}") <small>@Time.ShowDate(log.CreatedAt)</small></li>
+                    }
+                </ul>
+            }
+
+            @if (card.DeletedAt is null)
+            {
+                <h2>Remind me</h2>
+                @foreach (var reminder in Model.Reminders)
+                {
+                    <form method="post" class="reminder" action="@Post("DeleteReminder")" hx-post="@Post("DeleteReminder")" hx-target="#panel" hx-disable="@(!Model.Panel)">
+                        <input type="hidden" name="id" value="@reminder.Id" />
+                        <span>@Time.Show(reminder.RemindAt)@(reminder.Note is null ? "" : $": {reminder.Note}")</span>
+                        <button class="link-button" type="submit">Cancel</button>
+                    </form>
+                }
+                <form method="post" class="stack" action="@Post("Reminder")" hx-post="@Post("Reminder")" hx-target="#panel" hx-disable="@(!Model.Panel)">
+                    <label>When
+                        <input name="remindAt" type="datetime-local" required />
+                    </label>
+                    <label>Note
+                        <input name="note" maxlength="500" />
+                    </label>
+                    <button class="button" type="submit">Set reminder</button>
+                </form>
+            }
+
+            <h2>Details</h2>
+            <dl class="details">
+                <dt>Reporter</dt><dd>@(ticket.Reporter?.DisplayName ?? "None")</dd>
+                <dt>Created</dt><dd>@Time.Show(ticket.CreatedAt)</dd>
+                <dt>Updated</dt><dd>@Time.Show(ticket.UpdatedAt)</dd>
+            </dl>
+
+            @if (canAdminister && card.DeletedAt is null)
+            {
+                <form method="post" action="/tickets/@card.Key?handler=Delete">
+                    <button class="button button-danger" type="submit">Delete ticket</button>
+                </form>
+            }
+        </aside>
+    </div>
+</div>

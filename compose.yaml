@@ -1,3 +1,6 @@
+x-sql: &sql "Server=db;Database=SimpleTasksDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:?Copy .env.example to .env and set it};Encrypt=True;TrustServerCertificate=True"
+x-rabbit: &rabbit "amqp://simpletasks:${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}@rabbitmq:5672"
+
 services:
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -13,16 +16,88 @@ services:
       timeout: 5s
       retries: 20
       start_period: 30s
-  app:
-    build: .
-    ports:
-      - "127.0.0.1:5080:8080"
+
+  rabbitmq:
+    image: rabbitmq:4.3-management
     environment:
-      ASPNETCORE_ENVIRONMENT: "Production"
-      ConnectionStrings__DefaultConnection: "Server=db;Database=SimpleTasksDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env};Encrypt=True;TrustServerCertificate=True"
+      RABBITMQ_DEFAULT_USER: simpletasks
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  identity:
+    build:
+      context: .
+      dockerfile: services/SimpleTasks.Identity/Dockerfile
+    environment:
+      ConnectionStrings__DefaultConnection: *sql
+      ConnectionStrings__messaging: *rabbit
+      Internal__ApiKey: "${INTERNAL_API_KEY:?Set INTERNAL_API_KEY in .env}"
+      Identity__FirstAdminEmail: "${FIRST_ADMIN_EMAIL:?Set FIRST_ADMIN_EMAIL in .env}"
     depends_on:
       db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  work:
+    build:
+      context: .
+      dockerfile: services/SimpleTasks.Work/Dockerfile
+    environment:
+      ConnectionStrings__DefaultConnection: *sql
+      ConnectionStrings__messaging: *rabbit
+      services__identity__http__0: "http://identity:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity:
+        condition: service_started
+
+  notifications:
+    build:
+      context: .
+      dockerfile: services/SimpleTasks.Notifications/Dockerfile
+    environment:
+      ConnectionStrings__DefaultConnection: *sql
+      ConnectionStrings__messaging: *rabbit
+      services__identity__http__0: "http://identity:8080"
+      Gmail__Address: "${GMAIL_ADDRESS:-}"
+      Gmail__AppPassword: "${GMAIL_APP_PASSWORD:-}"
+      App__BaseUrl: "http://localhost:5080"
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: SimpleTasks/Dockerfile
+    ports:
+      - "127.0.0.1:5080:8080"
+    environment:
+      Internal__ApiKey: "${INTERNAL_API_KEY:?Set INTERNAL_API_KEY in .env}"
+      Authentication__Google__ClientId: "${GOOGLE_CLIENT_ID:-}"
+      Authentication__Google__ClientSecret: "${GOOGLE_CLIENT_SECRET:-}"
+      services__identity__http__0: "http://identity:8080"
+      services__work__http__0: "http://work:8080"
+      services__notifications__http__0: "http://notifications:8080"
+    depends_on:
+      - identity
+      - work
+      - notifications
 
 volumes:
   sqlserver-data:
+  rabbitmq-data:

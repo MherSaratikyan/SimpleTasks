@@ -9,3 +9,4 @@
 !.env.single-image.example
 SimpleTasks/appsettings.json
 appsettings.Development.json
+TestResults/

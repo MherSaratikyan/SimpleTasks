@@ -1,9 +1,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-COPY SimpleTasks/SimpleTasks.csproj SimpleTasks/
-RUN dotnet restore SimpleTasks/SimpleTasks.csproj
+COPY Directory.Build.props Directory.Packages.props ./
+COPY shared/ shared/
 COPY SimpleTasks/ SimpleTasks/
-RUN dotnet publish SimpleTasks/SimpleTasks.csproj -c Release -o /app/publish --no-restore /p:UseAppHost=false
+RUN dotnet publish SimpleTasks/SimpleTasks.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app

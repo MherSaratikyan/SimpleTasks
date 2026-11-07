@@ -39,6 +39,7 @@ else
 IResourceBuilder<ProjectResource> WithSql(IResourceBuilder<ProjectResource> project)
 {
     project.WithEnvironment("ConnectionStrings__DefaultConnection", sqlConnection);
+    project.WithHttpHealthCheck("/health");
     return containerSql is null ? project : project.WaitFor(containerSql);
 }
 
@@ -57,6 +58,7 @@ var notifications = WithSql(builder.AddProject<Projects.SimpleTasks_Notification
     .WithReference(identity).WaitFor(identity);
 
 builder.AddProject<Projects.SimpleTasks>("web")
+    .WithHttpHealthCheck("/health")
     .WithEnvironment("Internal__ApiKey", internalKey)
     .WithExternalHttpEndpoints()
     .WithReference(identity).WaitFor(identity)

@@ -1,0 +1,51 @@
+namespace SimpleTasks.Contracts;
+
+/// <summary>Marker for messages published between services. The type name is the routing key.</summary>
+public interface IIntegrationEvent;
+
+public enum ProjectRole
+{
+    Viewer = 1,
+    Member = 2,
+    Admin = 3
+}
+
+// Identity
+public sealed record UserChanged(
+    Guid UserId, string Email, string DisplayName, string? AvatarUrl, string TimeZoneId, bool IsActive) : IIntegrationEvent;
+
+public sealed record InviteCreated(
+    Guid InviteId, string Email, string? ProjectName, DateTime ExpiresAt) : IIntegrationEvent;
+
+public sealed record ProjectMembershipGranted(Guid UserId, Guid ProjectId, ProjectRole Role) : IIntegrationEvent;
+
+// Work
+public sealed record ProjectInviteRequested(
+    string Email, Guid ProjectId, string ProjectName, ProjectRole Role, Guid InvitedBy) : IIntegrationEvent;
+
+/// <summary>Full snapshot of what other services track about a ticket. Older versions are ignored.</summary>
+public sealed record TicketChanged(
+    Guid TicketId, long Version, string Key, string Title, Guid? AssigneeId,
+    DateTime? DueAt, bool IsDone, bool IsDeleted) : IIntegrationEvent;
+
+public sealed record TicketAssigned(
+    Guid TicketId, string Key, string Title, Guid AssigneeId, Guid ActorId) : IIntegrationEvent;
+
+public sealed record CommentAdded(
+    Guid TicketId, string Key, string Title, Guid ActorId, string ActorName,
+    IReadOnlyList<Guid> Recipients) : IIntegrationEvent;
+
+public sealed record EstimateChanged(
+    Guid TicketId, string Key, string Title, int? OldMinutes, int? NewMinutes, Guid ActorId,
+    IReadOnlyList<Guid> Recipients) : IIntegrationEvent;
+
+public enum EstimateAlertLevel
+{
+    None = 0,
+    Warning = 1,
+    Exceeded = 2
+}
+
+public sealed record EstimateThresholdCrossed(
+    Guid TicketId, string Key, string Title, EstimateAlertLevel Level, int LoggedMinutes, int EstimateMinutes,
+    IReadOnlyList<Guid> Recipients) : IIntegrationEvent;

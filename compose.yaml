@@ -1,9 +1,17 @@
-x-sql: &sql "Server=db;Database=SimpleTasksDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:?Copy .env.example to .env and set it};Encrypt=True;TrustServerCertificate=True"
+name: simpletasks
+
+# By default the services use the SQL Server you already run on this computer, reached
+# through host.docker.internal. To run a separate SQL Server inside Compose instead, set
+# SQL_SERVER=db in .env and start with: docker compose --profile own-db up -d
+x-sql: &sql "Server=${SQL_SERVER:-host.docker.internal,1433};Database=${SQL_DATABASE:-SimpleTasks};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Copy .env.example to .env and set it};Encrypt=True;TrustServerCertificate=True"
 x-rabbit: &rabbit "amqp://simpletasks:${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}@rabbitmq:5672"
+x-public-url: &public-url "${PUBLIC_URL:-http://localhost:5080}"
 
 services:
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    profiles: ["own-db"]
+    restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: "Developer"
@@ -19,6 +27,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.3-management
+    restart: unless-stopped
     # RabbitMQ keeps its data under the hostname, so it has to stay the same.
     hostname: rabbitmq
     environment:
@@ -37,15 +46,18 @@ services:
     build:
       context: .
       dockerfile: services/SimpleTasks.Identity/Dockerfile
+    image: simpletasks-identity
+    restart: unless-stopped
     environment:
       ConnectionStrings__DefaultConnection: *sql
       ConnectionStrings__messaging: *rabbit
       Internal__ApiKey: "${INTERNAL_API_KEY:?Set INTERNAL_API_KEY in .env}"
       Identity__FirstAdminEmail: "${FIRST_ADMIN_EMAIL:?Set FIRST_ADMIN_EMAIL in .env}"
-      App__BaseUrl: "http://localhost:5080"
+      App__BaseUrl: *public-url
     depends_on:
       db:
         condition: service_healthy
+        required: false
       rabbitmq:
         condition: service_healthy
 
@@ -53,6 +65,8 @@ services:
     build:
       context: .
       dockerfile: services/SimpleTasks.Work/Dockerfile
+    image: simpletasks-work
+    restart: unless-stopped
     environment:
       ConnectionStrings__DefaultConnection: *sql
       ConnectionStrings__messaging: *rabbit
@@ -60,6 +74,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+        required: false
       rabbitmq:
         condition: service_healthy
       identity:
@@ -69,16 +84,19 @@ services:
     build:
       context: .
       dockerfile: services/SimpleTasks.Notifications/Dockerfile
+    image: simpletasks-notifications
+    restart: unless-stopped
     environment:
       ConnectionStrings__DefaultConnection: *sql
       ConnectionStrings__messaging: *rabbit
       services__identity__http__0: "http://identity:8080"
       Gmail__Address: "${GMAIL_ADDRESS:-}"
       Gmail__AppPassword: "${GMAIL_APP_PASSWORD:-}"
-      App__BaseUrl: "http://localhost:5080"
+      App__BaseUrl: *public-url
     depends_on:
       db:
         condition: service_healthy
+        required: false
       rabbitmq:
         condition: service_healthy
       identity:
@@ -88,8 +106,14 @@ services:
     build:
       context: .
       dockerfile: SimpleTasks/Dockerfile
+    image: simpletasks-web
+    restart: unless-stopped
     ports:
-      - "127.0.0.1:5080:8080"
+      # All interfaces, so people on your network can reach it. Use "127.0.0.1:5080:8080" for this computer only.
+      - "5080:8080"
+    volumes:
+      # Sign-in cookie keys survive restarts, so nobody is logged out when the container restarts.
+      - web-keys:/home/app/.aspnet/DataProtection-Keys
     environment:
       Internal__ApiKey: "${INTERNAL_API_KEY:?Set INTERNAL_API_KEY in .env}"
       services__identity__http__0: "http://identity:8080"
@@ -103,3 +127,4 @@ services:
 volumes:
   sqlserver-data:
   rabbitmq-data:
+  web-keys:

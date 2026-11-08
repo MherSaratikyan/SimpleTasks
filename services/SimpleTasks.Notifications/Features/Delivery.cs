@@ -75,7 +75,8 @@ public sealed class GmailSender(IConfiguration configuration) : IEmailSender
     {
         var address = configuration["Gmail:Address"]
             ?? throw new InvalidOperationException("Gmail:Address is not configured.");
-        var appPassword = configuration["Gmail:AppPassword"]
+        // Google shows App Passwords in groups of four; the spaces aren't part of the password.
+        var appPassword = configuration["Gmail:AppPassword"]?.Replace(" ", string.Empty)
             ?? throw new InvalidOperationException("Gmail:AppPassword is not configured.");
         var baseUrl = (configuration["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
 

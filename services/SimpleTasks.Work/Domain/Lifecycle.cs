@@ -63,7 +63,7 @@ public static class TicketLifecycle
 }
 
 public sealed record StatsTicket(
-    Guid Id, Guid ProjectId, DateTime CreatedAt, DateTime? CompletedAt, TicketStatus Status, Guid? AssigneeId);
+    Guid Id, Guid ProjectId, DateTime CreatedAt, DateTime? CompletedAt, TicketStatus Status, Guid? AssigneeId, Guid? CompletedById = null);
 
 public sealed record StatsStatusChange(Guid TicketId, Guid? ActorId, DateTime At, TicketStatus? From, TicketStatus To);
 
@@ -77,7 +77,11 @@ public sealed record StatsResult(
     IReadOnlyList<DayStats> Days, IReadOnlyList<StatusTotal> CurrentByStatus,
     IReadOnlyList<PersonStats> People, IReadOnlyList<ProjectStats> Projects);
 
-/// <summary>Turns tickets and their status changes into dashboard figures for days in the viewer's time zone.</summary>
+/// <summary>
+/// Turns tickets and their status changes into dashboard figures for days in the viewer's time zone.
+/// Opened, closed, reopened and completed count tickets, each once; only the status-change
+/// figures count individual moves, so a ticket moved in and out of Done is closed once, on its last completion.
+/// </summary>
 public static class Statistics
 {
     public static StatsResult Calculate(
@@ -90,10 +94,10 @@ public static class Statistics
 
         var opened = tickets.Where(ticket => InRange(ticket.CreatedAt)).ToList();
         var moves = changes.Where(change => InRange(change.At)).ToList();
-        var closes = moves.Where(change => change.To == TicketStatus.Done).ToList();
-        var reopens = moves.Count(change => change.From == TicketStatus.Done && change.To != TicketStatus.Done);
-
+        // CompletedAt is cleared on reopening, so these are the tickets done now, by their latest completion.
         var finished = tickets.Where(ticket => ticket.CompletedAt is { } done && InRange(done)).ToList();
+        var reopens = moves.Where(change => change.From == TicketStatus.Done && change.To != TicketStatus.Done)
+            .Select(change => change.TicketId).Distinct().Count();
         double? averageHours = finished.Count == 0
             ? null
             : Math.Round(finished.Average(ticket => (ticket.CompletedAt!.Value - ticket.CreatedAt).TotalHours), 1);
@@ -105,7 +109,7 @@ public static class Statistics
             days.Add(new DayStats(
                 day,
                 opened.Count(ticket => Day(ticket.CreatedAt) == day),
-                dayMoves.Count(change => change.To == TicketStatus.Done),
+                finished.Count(ticket => Day(ticket.CompletedAt!.Value) == day),
                 dayMoves.Count(change => change.To == TicketStatus.ToDo),
                 dayMoves.Count(change => change.To == TicketStatus.InProgress),
                 dayMoves.Count(change => change.To == TicketStatus.InReview),
@@ -117,8 +121,8 @@ public static class Statistics
             .Select(status => new StatusTotal(status, tickets.Count(ticket => ticket.Status == status)))
             .ToList();
 
-        var completedBy = closes.Where(change => change.ActorId is not null)
-            .GroupBy(change => change.ActorId!.Value)
+        var completedBy = finished.Where(ticket => ticket.CompletedById is not null)
+            .GroupBy(ticket => ticket.CompletedById!.Value)
             .ToDictionary(group => group.Key, group => group.Count());
         var assignedTo = open.Where(ticket => ticket.AssigneeId is not null)
             .GroupBy(ticket => ticket.AssigneeId!.Value)
@@ -128,15 +132,14 @@ public static class Statistics
             .OrderByDescending(person => person.Completed).ThenByDescending(person => person.OpenAssigned)
             .ToList();
 
-        var ticketProject = tickets.ToDictionary(ticket => ticket.Id, ticket => ticket.ProjectId);
         var projects = tickets.Select(ticket => ticket.ProjectId).Distinct()
             .Select(projectId => new ProjectStats(
                 projectId,
                 opened.Count(ticket => ticket.ProjectId == projectId),
-                closes.Count(change => ticketProject.GetValueOrDefault(change.TicketId) == projectId),
+                finished.Count(ticket => ticket.ProjectId == projectId),
                 open.Count(ticket => ticket.ProjectId == projectId)))
             .ToList();
 
-        return new StatsResult(opened.Count, closes.Count, reopens, open.Count, averageHours, days, byStatus, people, projects);
+        return new StatsResult(opened.Count, finished.Count, reopens, open.Count, averageHours, days, byStatus, people, projects);
     }
 }

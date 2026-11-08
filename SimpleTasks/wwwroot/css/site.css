@@ -810,3 +810,8 @@ label { display: grid; gap: 6px; color: var(--text-2); font-size: 12px; font-wei
     .chart-grid { grid-template-columns: minmax(0, 1fr); }
 }
 .danger-zone label { display: block; }
+
+/* ---------- Completed cards ---------- */
+.card-locked { cursor: default; }
+.card-locked:hover { transform: none; }
+.card-completed { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; color: var(--done); font-size: 12px; font-weight: 600; }

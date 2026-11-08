@@ -92,7 +92,7 @@ public class StatisticsTests
         var t3 = Guid.NewGuid();
         var tickets = new List<StatsTicket>
         {
-            new(t1, ProjectA, At(2), At(4), TicketStatus.Done, Alice),
+            new(t1, ProjectA, At(2), At(4), TicketStatus.Done, Alice, Alice),
             new(t2, ProjectA, At(3), null, TicketStatus.InProgress, Alice),
             new(t3, ProjectB, new DateTime(2026, 10, 20, 0, 0, 0, DateTimeKind.Utc), null, TicketStatus.ToDo, null)
         };
@@ -130,6 +130,34 @@ public class StatisticsTests
 
         Assert.Equal(1, result.Days.Single(day => day.Date == new DateOnly(2026, 11, 4)).Opened);
         Assert.Equal(0, result.Days.Single(day => day.Date == new DateOnly(2026, 11, 3)).Opened);
+    }
+
+    [Fact]
+    public void A_ticket_closed_several_times_counts_once_and_a_new_ticket_is_never_closed()
+    {
+        // What happened with BUGGY-1 and BUGGY-2: one ticket dragged in and out of Done three times, one just created.
+        var bouncing = Guid.NewGuid();
+        var fresh = Guid.NewGuid();
+        var tickets = new List<StatsTicket>
+        {
+            new(bouncing, ProjectA, At(5, 9), At(5, 16), TicketStatus.Done, Alice, Alice),
+            new(fresh, ProjectA, At(5, 15), null, TicketStatus.ToDo, Alice)
+        };
+        var changes = new List<StatsStatusChange>
+        {
+            new(bouncing, Alice, At(5, 10), TicketStatus.InReview, TicketStatus.Done),
+            new(bouncing, Alice, At(5, 11), TicketStatus.Done, TicketStatus.InReview),
+            new(bouncing, Alice, At(5, 12), TicketStatus.InReview, TicketStatus.Done),
+            new(bouncing, Alice, At(5, 13), TicketStatus.Done, TicketStatus.InProgress),
+            new(bouncing, Alice, At(5, 16), TicketStatus.InProgress, TicketStatus.Done)
+        };
+
+        var result = Statistics.Calculate(tickets, changes, First, Last, TimeZoneInfo.Utc);
+
+        Assert.Equal((2, 1, 1, 1), (result.Opened, result.Closed, result.Reopened, result.CurrentlyOpen));
+        Assert.Equal(1, result.Days.Single(day => day.Date == new DateOnly(2026, 11, 5)).Closed);
+        Assert.Equal(3, result.Days.Single(day => day.Date == new DateOnly(2026, 11, 5)).Done);
+        Assert.Equal(1, result.People.Single().Completed);
     }
 
     [Fact]

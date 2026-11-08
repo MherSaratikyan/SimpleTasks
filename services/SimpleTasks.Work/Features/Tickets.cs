@@ -11,7 +11,7 @@ public sealed record UserRef(Guid Id, string DisplayName, string? AvatarUrl);
 public sealed record TicketCard(
     string Key, string Title, TicketType Type, TicketStatus Status, TicketPriority Priority, UserRef? Assignee,
     int? EstimateMinutes, int LoggedMinutes, string? Estimate, string Logged, DateTime? DueAt, double Rank,
-    IReadOnlyList<LabelView> Labels, DateTime? DeletedAt, UserRef? QaOwner);
+    IReadOnlyList<LabelView> Labels, DateTime? DeletedAt, UserRef? QaOwner, UserRef? CompletedBy, DateTime? CompletedAt);
 public sealed record CommentView(Guid Id, UserRef? Author, string Body, DateTime CreatedAt);
 public sealed record WorkLogView(Guid Id, UserRef? User, string Time, string? Note, DateTime CreatedAt);
 
@@ -90,7 +90,7 @@ public static class Tickets
 
         var items = await query.Include(ticket => ticket.Project).Include(ticket => ticket.Labels)
             .OrderBy(ticket => ticket.Rank).ToListAsync(ct);
-        var users = await LoadUsersAsync(db, items.SelectMany(ticket => new[] { ticket.AssigneeId, ticket.QaOwnerId }), ct);
+        var users = await LoadUsersAsync(db, items.SelectMany(ticket => new[] { ticket.AssigneeId, ticket.QaOwnerId, ticket.CompletedById }), ct);
         return Results.Ok(items.Select(ticket => ToCard(ticket, users)));
     }
 
@@ -559,5 +559,5 @@ public static class Tickets
         ticket.EstimateMinutes is { } estimate ? JiraDuration.Format(estimate) : null,
         JiraDuration.Format(ticket.LoggedMinutes), ticket.DueAt, ticket.Rank,
         ticket.Labels.OrderBy(label => label.Name).Select(label => new LabelView(label.Id, label.Name, label.Color)).ToList(),
-        ticket.DeletedAt, Ref(users, ticket.QaOwnerId));
+        ticket.DeletedAt, Ref(users, ticket.QaOwnerId), Ref(users, ticket.CompletedById), ticket.CompletedAt);
 }

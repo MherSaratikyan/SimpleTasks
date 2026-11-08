@@ -181,11 +181,10 @@
                     <dd>@(ticket.AssignedBy?.DisplayName ?? "Unknown")@(ticket.AssignedAt is { } assignedAt ? $", {Time.Show(assignedAt)}" : "")</dd>
                 }
                 <dt>QA owner</dt><dd>@(card.QaOwner?.DisplayName ?? "None")</dd>
-                @if (card.Status == TicketStatus.Done)
-                {
-                    <dt>Done by</dt><dd>@(ticket.CompletedBy?.DisplayName ?? "Unknown")</dd>
-                    <dt>Completion time</dt><dd>@(ticket.CompletedAt is { } completedAt ? Time.Show(completedAt) : "Unknown")</dd>
-                }
+                <dt>Completed by</dt>
+                <dd>@(card.Status == TicketStatus.Done ? ticket.CompletedBy?.DisplayName ?? "Unknown" : "Not completed yet")</dd>
+                <dt>Completion time</dt>
+                <dd>@(ticket.CompletedAt is { } completedAt ? Time.Show(completedAt) : "Not completed yet")</dd>
                 <dt>Updated</dt><dd>@Time.Show(ticket.UpdatedAt)</dd>
             </dl>
 

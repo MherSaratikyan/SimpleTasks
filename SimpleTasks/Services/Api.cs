@@ -20,7 +20,7 @@ public sealed record UserRef(Guid Id, string DisplayName, string? AvatarUrl);
 public sealed record TicketCard(
     string Key, string Title, TicketType Type, TicketStatus Status, TicketPriority Priority, UserRef? Assignee,
     int? EstimateMinutes, int LoggedMinutes, string? Estimate, string Logged, DateTime? DueAt, double Rank,
-    IReadOnlyList<LabelView> Labels, DateTime? DeletedAt, UserRef? QaOwner);
+    IReadOnlyList<LabelView> Labels, DateTime? DeletedAt, UserRef? QaOwner, UserRef? CompletedBy, DateTime? CompletedAt);
 public sealed record CommentView(Guid Id, UserRef? Author, string Body, DateTime CreatedAt);
 public sealed record WorkLogView(Guid Id, UserRef? User, string Time, string? Note, DateTime CreatedAt);
 /// <summary>One history entry; Kind 2 is a status change. From and To are display text, or null.</summary>

@@ -76,6 +76,9 @@
             group: 'board',
             animation: 120,
             ghostClass: 'card-ghost',
+            // Done tickets are locked; clicks on them still open the ticket.
+            filter: '.card-locked',
+            preventOnFilter: false,
             onEnd: async event => {
                 const body = new URLSearchParams({
                     ticketKey: event.item.dataset.key,
@@ -104,6 +107,10 @@
                         toast(problem?.error ?? 'That move couldn\'t be saved.');
                         setTimeout(() => location.reload(), 1500);
                         return;
+                    }
+                    // A card dropped into Done is locked straight away, like the server treats it.
+                    if (event.to.dataset.status === '3') {
+                        event.item.classList.add('card-locked');
                     }
                     board.querySelectorAll('.column').forEach(section => {
                         section.querySelector('h2 span').textContent = section.querySelectorAll('.card').length;

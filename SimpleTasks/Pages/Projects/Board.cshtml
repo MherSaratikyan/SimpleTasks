@@ -18,7 +18,8 @@
             <div class="column-cards" data-status="@((int)status)">
                 @foreach (var ticket in cards)
                 {
-                    <article class="card" data-key="@ticket.Key">
+                    var done = ticket.Status == TicketStatus.Done;
+                    <article class="card @(done ? "card-locked" : "")" data-key="@ticket.Key" title="@(done ? "Done tickets can't be dragged. Reopen from the ticket page." : null)">
                         <a class="card-title" href="/tickets/@ticket.Key"
                            hx-get="/tickets/@ticket.Key?panel=true" hx-target="#panel">@ticket.Title</a>
                         @if (ticket.Labels.Count > 0)
@@ -44,6 +45,10 @@
                                 <span class="chip @(ticket.LoggedMinutes > ticket.EstimateMinutes ? "chip-danger" : "")">@Ui.Icon("timer", "icon-sm") @ticket.Logged / @ticket.Estimate</span>
                             }
                         </div>
+                        @if (done && ticket.CompletedAt is { } completedAt)
+                        {
+                            <p class="card-completed">@Ui.Icon("square-check-big", "icon-sm") @(ticket.CompletedBy?.DisplayName ?? "Someone"), @Time.ShowDate(completedAt)</p>
+                        }
                         @if (ticket.EstimateMinutes is > 0)
                         {
                             <div class="card-progress @(ticket.LoggedMinutes > ticket.EstimateMinutes ? "over" : "")" role="img" aria-label="@Ui.PercentUsed(ticket)% of estimate used">

@@ -149,7 +149,7 @@ public class ProjectFeatureTests(SystemFixture system)
         var stats = await admin.Work.GetFromJsonAsync<Stats>($"/api/statistics?days=7&project={project}&tz=UTC");
 
         Assert.Equal(2, stats!.Opened);
-        Assert.Equal(2, stats.Closed);
+        Assert.Equal(1, stats.Closed);
         Assert.Equal(1, stats.Reopened);
         Assert.Equal(1, stats.CurrentlyOpen);
         Assert.Equal(7, stats.Days.Count);

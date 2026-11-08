@@ -50,7 +50,7 @@ public static class StatisticsEndpoints
             }
 
             var ticketRows = await tickets
-                .Select(ticket => new StatsTicket(ticket.Id, ticket.ProjectId, ticket.CreatedAt, ticket.CompletedAt, ticket.Status, ticket.AssigneeId))
+                .Select(ticket => new StatsTicket(ticket.Id, ticket.ProjectId, ticket.CreatedAt, ticket.CompletedAt, ticket.Status, ticket.AssigneeId, ticket.CompletedById))
                 .ToListAsync(ct);
             var changeRows = await (
                 from entry in db.Activity.AsNoTracking()

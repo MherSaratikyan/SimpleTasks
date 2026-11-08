@@ -108,20 +108,46 @@ later, update `PublicUrl`; a DHCP reservation in the router keeps it fixed.
 
 ## Run with Docker Compose
 
-Compose runs its own SQL Server, separate from any server you already have.
+Compose builds an image for each service (`simpletasks-identity`, `-work`,
+`-notifications` and `-web`) and runs them with RabbitMQ. By default they use the
+SQL Server already on this computer, so you keep your data. Stop the Visual Studio
+run first, because both use port 5080.
+
+1. Create your settings file. Put in the same SQL password as
+   `SimpleTasks/appsettings.json`, and set `PUBLIC_URL` to the address people will open:
 
 ```powershell
 Copy-Item .env.example .env
 notepad .env
 ```
 
+2. Build and start everything:
+
 ```bash
 docker compose up --build -d
 ```
 
-Open http://localhost:5080. Compose runs in Production mode, so there are no test
-accounts. Get your first password link from your email, or from
-`docker compose logs identity`. See [docs/setup-email.md](docs/setup-email.md).
+Open the address in `PUBLIC_URL`. Compose runs in Production mode, so there are no
+test accounts. Get your first password link from your email, or from the Identity
+logs; see [docs/setup-email.md](docs/setup-email.md):
+
+```bash
+docker compose logs identity
+```
+
+The containers restart on their own whenever Docker starts. Useful commands:
+
+```bash
+docker compose ps
+```
+
+```bash
+docker compose down
+```
+
+After changing code, rebuild and restart with `docker compose up --build -d`. To run
+a separate SQL Server inside Compose instead, set `SQL_SERVER=db` in `.env` and add
+`--profile own-db` to the `up` command; that database starts empty.
 
 ## Run the tests
 

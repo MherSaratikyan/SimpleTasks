@@ -65,6 +65,7 @@ var notifications = WithSql(builder.AddProject<Projects.SimpleTasks_Notification
     .WithReference(identity).WaitFor(identity);
 
 builder.AddProject<Projects.SimpleTasks>("web")
+    .WithEnvironment("Auth__SessionMinutes", builder.Configuration["SessionMinutes"] ?? "30")
     // Only the web app listens beyond this computer; the services and dashboard stay local.
     .WithEndpoint("http", endpoint =>
     {

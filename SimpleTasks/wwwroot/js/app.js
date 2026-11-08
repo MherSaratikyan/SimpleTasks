@@ -94,6 +94,11 @@
                         headers: { 'RequestVerificationToken': token },
                         body
                     });
+                    // An expired session redirects to the login page, which loads fine but saved nothing.
+                    if (response.redirected && new URL(response.url).pathname.startsWith('/Account/Login')) {
+                        location.href = `/Account/Login?ReturnUrl=${encodeURIComponent(location.pathname)}`;
+                        return;
+                    }
                     if (!response.ok) {
                         const problem = await response.json().catch(() => null);
                         toast(problem?.error ?? 'That move couldn\'t be saved.');

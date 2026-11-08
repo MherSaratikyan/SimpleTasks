@@ -27,11 +27,32 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/Denied";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+
+        // The session ends after this many minutes without a request from any tab; every
+        // page load or action renews it. Tabs share one session, so a new tab doesn't reset it.
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(builder.Configuration.GetValue("Auth:SessionMinutes", 30));
         options.SlidingExpiration = true;
         options.Cookie.Name = "SimpleTasks.Auth";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
+
+        // A partial update (the bell, the ticket panel) can't show a login page inside itself,
+        // so it gets a 401 telling htmx to send the whole page to the login screen instead.
+        options.Events.OnRedirectToLogin = context =>
+        {
+            if (context.Request.Headers.ContainsKey("HX-Request"))
+            {
+                // Return to the page the person was on, not the fragment that noticed the expiry.
+                var current = Uri.TryCreate(context.Request.Headers["HX-Current-URL"].ToString(), UriKind.Absolute, out var page)
+                    ? page.PathAndQuery
+                    : "/";
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Headers["HX-Redirect"] = $"{context.Options.LoginPath}?ReturnUrl={Uri.EscapeDataString(current)}";
+                return Task.CompletedTask;
+            }
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        };
     });
 
 // Slows down password guessing from one address; Identity also locks an account after 5 misses.

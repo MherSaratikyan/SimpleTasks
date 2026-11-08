@@ -13,7 +13,12 @@ public class ErrorModel : PageModel
 
     private void Describe(int? code)
     {
-        if (code == 404)
+        if (code == 429)
+        {
+            Heading = "Too many attempts";
+            Message = "Please wait a minute and try again.";
+        }
+        else if (code == 404)
         {
             Heading = "We can't find that";
             Message = "It may have been deleted, or you may not have access to it.";

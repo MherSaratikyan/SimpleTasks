@@ -71,8 +71,3 @@ public sealed class UserTime(IHttpContextAccessor accessor)
     private DateTime Local(DateTime utc) =>
         TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Zone);
 }
-
-public sealed class GoogleSignInOptions
-{
-    public bool Enabled { get; set; }
-}

@@ -10,6 +10,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="same-origin" />
     <title>@ViewData["Title"] - Simple Tasks</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <meta name="request-token" content="@(Context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>().GetAndStoreTokens(Context).RequestToken)" />

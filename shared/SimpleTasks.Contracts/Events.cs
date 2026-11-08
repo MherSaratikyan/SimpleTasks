@@ -14,8 +14,11 @@ public enum ProjectRole
 public sealed record UserChanged(
     Guid UserId, string Email, string DisplayName, string? AvatarUrl, string TimeZoneId, bool IsActive) : IIntegrationEvent;
 
+/// <summary>SetupToken is the one-time secret for the invite link; only the email may show it.</summary>
 public sealed record InviteCreated(
-    Guid InviteId, string Email, string? ProjectName, DateTime ExpiresAt) : IIntegrationEvent;
+    Guid InviteId, string Email, string? ProjectName, DateTime ExpiresAt, string? SetupToken) : IIntegrationEvent;
+
+public sealed record PasswordResetRequested(string Email, string Token, DateTime ExpiresAt) : IIntegrationEvent;
 
 public sealed record ProjectMembershipGranted(Guid UserId, Guid ProjectId, ProjectRole Role) : IIntegrationEvent;
 

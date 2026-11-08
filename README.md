@@ -3,7 +3,7 @@
 A Jira-style work tracker built as event-driven microservices on .NET 10:
 projects with ticket keys (ST-123), a drag-and-drop board, a backlog, labels,
 time estimates with work logging, due-date and personal reminders, a live
-notification bell, Gmail email, and invite-only Google sign-in.
+notification bell, Gmail email, and invite-only email and password login.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ SQL Server: SimpleTasks_Identity | SimpleTasks_Work | SimpleTasks_Notifications
 | Project | Owns |
 | --- | --- |
 | `SimpleTasks` | The web app: pages, the sign-in cookie, combining data from services. No database. |
-| `services/SimpleTasks.Identity` | Users, invites, the Site Admin flag, signing service tokens. |
+| `services/SimpleTasks.Identity` | Users, passwords, invites and reset links, the Site Admin flag, signing service tokens. |
 | `services/SimpleTasks.Work` | Projects, roles, tickets, labels, comments, estimates, work logs, activity. |
 | `services/SimpleTasks.Notifications` | The bell, the email queue, reminders, email preferences. |
 | `shared/SimpleTasks.Contracts` | Event definitions and the enums they use. |
@@ -60,9 +60,12 @@ dotnet run --project SimpleTasks.AppHost --launch-profile SimpleTasks.AppHost
 ```
 
 The app opens at http://localhost:5080, and the Aspire dashboard with logs and
-request traces at http://localhost:15080. In Development, the sign-in page offers
-test accounts. To use real Google sign-in and Gmail, see
-[docs/setup-google.md](docs/setup-google.md).
+request traces at http://localhost:15080. In Development, the login page also
+offers test accounts that need no password.
+
+To log in as yourself the first time, open the link the app emails you, or copy it
+from the Identity logs in the dashboard. Everyone else joins by invite. To send real
+email, see [docs/setup-email.md](docs/setup-email.md).
 
 To try things without touching your real databases, start a throwaway run with
 its own temporary SQL Server and RabbitMQ:
@@ -88,8 +91,9 @@ notepad .env
 docker compose up --build -d
 ```
 
-Open http://localhost:5080. Compose runs in Production mode, so there's no test
-sign-in: set up Google first using [docs/setup-google.md](docs/setup-google.md).
+Open http://localhost:5080. Compose runs in Production mode, so there are no test
+accounts. Get your first password link from your email, or from
+`docker compose logs identity`. See [docs/setup-email.md](docs/setup-email.md).
 
 ## Run the tests
 

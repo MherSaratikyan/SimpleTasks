@@ -62,7 +62,8 @@ public sealed class LogEmailSender(ILogger<LogEmailSender> logger) : IEmailSende
 {
     public Task SendAsync(EmailMessage email, CancellationToken ct)
     {
-        logger.LogInformation("Email (not sent in Development) to {To}: {Subject} - {Body}", email.To, email.Subject, email.Body);
+        logger.LogInformation("Email (not sent in Development) to {To}: {Subject} - {Body} {Link}",
+            email.To, email.Subject, email.Body, email.LinkPath is null ? string.Empty : $"http://localhost:5080{email.LinkPath}");
         return Task.CompletedTask;
     }
 }

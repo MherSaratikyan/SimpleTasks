@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SimpleTasks.Contracts;
 using SimpleTasks.Identity.Data;
+using SimpleTasks.Identity.Security;
 using SimpleTasks.Messaging;
 using SimpleTasks.ServiceDefaults;
 
@@ -30,7 +31,12 @@ public static class Invites
             {
                 return Results.BadRequest(new { error = "Enter a valid email address." });
             }
-            var invite = await CreateAsync(db, request.Email, null, null, null, http.User.UserId(), DateTime.UtcNow, ct);
+            var email = Login.Normalize(request.Email);
+            if (await db.Users.AnyAsync(user => user.Email == email, ct))
+            {
+                return Results.Conflict(new { error = $"{email} already has an account." });
+            }
+            var invite = await CreateAsync(db, email, null, null, null, http.User.UserId(), DateTime.UtcNow, ct);
             await db.SaveChangesAsync(ct);
             return Results.Ok(new InviteView(invite.Id, invite.Email, null, invite.ExpiresAt, null));
         });
@@ -39,11 +45,12 @@ public static class Invites
     public static bool IsEmail(string email) =>
         email.Trim() is { Length: > 2 and <= 320 } trimmed && trimmed.IndexOf('@') is > 0 && !trimmed.EndsWith('@');
 
+    /// <summary>Creates or renews an invite. Renewing issues a new link, so an older email stops working.</summary>
     public static async Task<Invite> CreateAsync(
         IdentityDb db, string email, Guid? projectId, string? projectName, ProjectRole? role,
         Guid invitedBy, DateTime now, CancellationToken ct)
     {
-        var normalized = email.Trim().ToLowerInvariant();
+        var normalized = Login.Normalize(email);
         var existing = await db.Invites.FirstOrDefaultAsync(invite =>
             invite.Email == normalized && invite.ProjectId == projectId && invite.AcceptedAt == null, ct);
 
@@ -52,11 +59,14 @@ public static class Invites
         {
             db.Invites.Add(invite);
         }
+
+        var token = OneTimeToken.Create();
+        invite.TokenHash = OneTimeToken.Hash(token);
         invite.Role = role;
         invite.InvitedBy = invitedBy;
         invite.ExpiresAt = now.Add(Lifetime);
 
-        db.Publish(new InviteCreated(invite.Id, invite.Email, projectName, invite.ExpiresAt));
+        db.Publish(new InviteCreated(invite.Id, invite.Email, projectName, invite.ExpiresAt, token));
         return invite;
     }
 }
@@ -66,7 +76,7 @@ public sealed class ProjectInviteRequestedHandler(IdentityDb db) : IEventHandler
 {
     public async Task HandleAsync(ProjectInviteRequested message, CancellationToken ct)
     {
-        var email = message.Email.Trim().ToLowerInvariant();
+        var email = Login.Normalize(message.Email);
         var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(user => user.Email == email, ct);
         if (user is not null)
         {

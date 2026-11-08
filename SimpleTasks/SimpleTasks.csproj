@@ -3,7 +3,6 @@
     <UserSecretsId>simpletasks-web</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" />
     <PackageReference Include="Yarp.ReverseProxy" />
     <ProjectReference Include="..\shared\SimpleTasks.Contracts\SimpleTasks.Contracts.csproj" />
     <ProjectReference Include="..\shared\SimpleTasks.ServiceDefaults\SimpleTasks.ServiceDefaults.csproj" />

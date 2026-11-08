@@ -18,7 +18,7 @@ public class SystemTests(SystemFixture system)
 
     private static string Unique(string prefix) => $"{prefix}{Guid.NewGuid():N}"[..10].ToUpperInvariant();
 
-    private Task<TestUser> AdminAsync() => system.SignInAsync(SystemFixture.FirstAdminEmail);
+    private Task<TestUser> AdminAsync() => system.AdminAsync();
 
     private static async Task<string> CreateProjectAsync(TestUser admin)
     {
@@ -51,9 +51,7 @@ public class SystemTests(SystemFixture system)
         var invited = await admin.Work.PostAsJsonAsync($"/api/projects/{projectKey}/invites", new { email, role });
         Assert.Equal(HttpStatusCode.Accepted, invited.StatusCode);
 
-        await SystemFixture.WaitUntilAsync(
-            async () => (await system.TrySignInAsync(email)).IsSuccessStatusCode, "the invite to reach Identity");
-        var user = await system.SignInAsync(email);
+        var user = await system.AcceptInviteAsync(email);
         await SystemFixture.WaitUntilAsync(
             async () => (await user.Work.GetAsync($"/api/projects/{projectKey}")).IsSuccessStatusCode, "the membership to reach Work");
         return user;
@@ -62,8 +60,8 @@ public class SystemTests(SystemFixture system)
     [Fact]
     public async Task Only_invited_people_get_in()
     {
-        var stranger = await system.TrySignInAsync($"{Guid.NewGuid():N}@example.test");
-        Assert.Equal(HttpStatusCode.Forbidden, stranger.StatusCode);
+        var stranger = await system.TryLoginAsync($"{Guid.NewGuid():N}@example.test", SystemFixture.TestPassword);
+        Assert.Equal(HttpStatusCode.Unauthorized, stranger.StatusCode);
 
         var noKey = await new HttpClient { BaseAddress = system.IdentityUrl }
             .PostAsJsonAsync("/internal/tokens", new { userId = Guid.NewGuid() });
@@ -125,7 +123,7 @@ public class SystemTests(SystemFixture system)
 
         (await admin.Identity.PostAsJsonAsync($"/api/users/{member.Id}/active", new { isActive = false })).EnsureSuccessStatusCode();
 
-        Assert.Equal(HttpStatusCode.Forbidden, (await system.TrySignInAsync(member.Email)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await system.TryLoginAsync(member.Email, SystemFixture.TestPassword)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await system.InternalClient().PostAsJsonAsync("/internal/tokens", new { userId = member.Id })).StatusCode);
     }
 

@@ -16,6 +16,7 @@ builder.AddServiceAuthentication();
 
 var tokens = new TokenIssuer();
 builder.Services.AddSingleton(tokens);
+builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.IPasswordHasher<User>, Microsoft.AspNetCore.Identity.PasswordHasher<User>>();
 
 // Identity validates its own tokens with the key it holds rather than calling itself.
 builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
@@ -31,18 +32,33 @@ var app = builder.Build();
 
 await app.MigrateDatabaseAsync<IdentityDb>();
 
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    await FirstAdmin.EnsureAsync(
+        scope.ServiceProvider.GetRequiredService<IdentityDb>(),
+        app.Configuration["Identity:FirstAdminEmail"],
+        app.Configuration["App:BaseUrl"] ?? "http://localhost:5080",
+        app.Logger);
+}
+
 if (app.Environment.IsDevelopment())
 {
     await using var scope = app.Services.CreateAsyncScope();
-    await DevUsers.SeedAsync(
-        scope.ServiceProvider.GetRequiredService<IdentityDb>(),
-        app.Configuration["Identity:FirstAdminEmail"]);
+    await DevUsers.SeedAsync(scope.ServiceProvider.GetRequiredService<IdentityDb>());
 
     app.MapGet("/internal/dev-users", async (IdentityDb db, CancellationToken ct) =>
         await db.Users.AsNoTracking().OrderBy(user => user.Email)
             .Select(user => new { user.Email, user.DisplayName, user.IsSiteAdmin })
             .ToListAsync(ct))
         .AddEndpointFilter<InternalKeyFilter>();
+
+    // Development only: signs in a seeded account without a password.
+    app.MapPost("/internal/dev-sign-in", async (DevSignInRequest request, IdentityDb db, CancellationToken ct) =>
+    {
+        var email = Login.Normalize(request.Email);
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(user => user.Email == email && user.IsActive, ct);
+        return user is null ? Results.Forbid() : Results.Ok(user.ToResponse());
+    }).AddEndpointFilter<InternalKeyFilter>();
 }
 
 app.UseAuthentication();
@@ -60,10 +76,12 @@ app.MapGet("/.well-known/openid-configuration", (HttpContext http) =>
     });
 });
 app.MapGet("/.well-known/jwks.json", (TokenIssuer issuer) => Results.Json(issuer.Jwks()));
-app.MapSignIn();
+app.MapLogin();
 app.MapInvites();
 app.MapUsers();
 
 await app.RunAsync();
 
 public sealed class IdentityEntryPoint;
+
+public sealed record DevSignInRequest(string Email);

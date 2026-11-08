@@ -7,7 +7,7 @@ using SimpleTasks.Contracts;
 
 namespace SimpleTasks.Services;
 
-public sealed record SignInRequest(string Email, string DisplayName, string? AvatarUrl, string? GoogleSubject);
+public sealed record PasswordLink(string Kind, string Email);
 public sealed record SignInResponse(Guid UserId, string Email, string DisplayName, string? AvatarUrl, string TimeZoneId, bool IsSiteAdmin);
 public sealed record DevUser(string Email, string DisplayName, bool IsSiteAdmin);
 public sealed record UserView(Guid Id, string Email, string DisplayName, string? AvatarUrl, string TimeZoneId, bool IsSiteAdmin, bool IsActive);
@@ -49,9 +49,35 @@ public sealed class AccountRevokedException : Exception;
 /// <summary>Calls Identity with the internal key, for steps before a user has a token.</summary>
 public sealed class IdentityInternalClient(HttpClient http)
 {
-    public async Task<SignInResponse?> SignInAsync(SignInRequest request, CancellationToken ct)
+    /// <summary>Returns the user, or a message to show when the email and password aren't accepted.</summary>
+    public Task<(SignInResponse? User, string? Error)> LoginAsync(string email, string password, CancellationToken ct) =>
+        SendForUserAsync("/internal/login", new { email, password }, ct);
+
+    public async Task RequestPasswordResetAsync(string email, CancellationToken ct)
     {
-        using var response = await http.PostAsJsonAsync("/internal/sign-in", request, ct);
+        using var response = await http.PostAsJsonAsync("/internal/password-reset", new { email }, ct);
+        response.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>Says whether a link is for a new account ("invite") or a reset ("reset"), or null if it no longer works.</summary>
+    public async Task<PasswordLink?> CheckPasswordLinkAsync(string token, CancellationToken ct)
+    {
+        using var response = await http.GetAsync($"/internal/password-token?token={Uri.EscapeDataString(token)}", ct);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<PasswordLink>(ct);
+    }
+
+    public Task<(SignInResponse? User, string? Error)> SetPasswordAsync(
+        string token, string password, string? displayName, CancellationToken ct) =>
+        SendForUserAsync("/internal/password", new { token, password, displayName }, ct);
+
+    public async Task<SignInResponse?> DevSignInAsync(string email, CancellationToken ct)
+    {
+        using var response = await http.PostAsJsonAsync("/internal/dev-sign-in", new { email }, ct);
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
             return null;
@@ -59,6 +85,23 @@ public sealed class IdentityInternalClient(HttpClient http)
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<SignInResponse>(ct);
     }
+
+    private async Task<(SignInResponse? User, string? Error)> SendForUserAsync(string path, object body, CancellationToken ct)
+    {
+        using var response = await http.PostAsJsonAsync(path, body, ct);
+        if ((int)response.StatusCode >= 500)
+        {
+            response.EnsureSuccessStatusCode();
+        }
+        if (response.IsSuccessStatusCode)
+        {
+            return (await response.Content.ReadFromJsonAsync<SignInResponse>(ct), null);
+        }
+        var problem = await response.Content.ReadFromJsonAsync<ErrorBody>(ct);
+        return (null, problem?.Error ?? "That didn't work. Please try again.");
+    }
+
+    private sealed record ErrorBody(string? Error);
 
     public async Task<List<DevUser>> GetDevUsersAsync(CancellationToken ct) =>
         await http.GetFromJsonAsync<List<DevUser>>("/internal/dev-users", ct) ?? [];

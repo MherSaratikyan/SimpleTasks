@@ -68,7 +68,7 @@ public static class DevUsers
 {
     public static readonly string[] Emails = ["dev.member@simpletasks.test", "dev.viewer@simpletasks.test"];
 
-    public static async Task SeedAsync(IdentityDb db, string? firstAdminEmail)
+    public static async Task SeedAsync(IdentityDb db)
     {
         foreach (var email in Emails)
         {
@@ -79,13 +79,41 @@ public static class DevUsers
                 db.Publish(user.ToChangedEvent());
             }
         }
+        await db.SaveChangesAsync();
+    }
+}
 
-        var adminEmail = firstAdminEmail?.Trim().ToLowerInvariant();
-        if (adminEmail is { Length: > 0 } && !await db.Users.AnyAsync(user => user.Email == adminEmail))
+/// <summary>
+/// Makes sure the configured first admin exists. Until they have a password, every start
+/// emails and logs a link to set one, so they can get in before email is set up.
+/// </summary>
+public static class FirstAdmin
+{
+    public static readonly TimeSpan LinkLifetime = TimeSpan.FromHours(24);
+
+    public static async Task EnsureAsync(IdentityDb db, string? configuredEmail, string baseUrl, ILogger logger)
+    {
+        var email = Login.Normalize(configuredEmail);
+        if (email.Length == 0)
         {
-            var admin = new User { Email = adminEmail, DisplayName = adminEmail.Split('@')[0], IsSiteAdmin = true };
+            return;
+        }
+
+        var admin = await db.Users.FirstOrDefaultAsync(user => user.Email == email);
+        if (admin is null)
+        {
+            admin = new User { Email = email, DisplayName = email.Split('@')[0], IsSiteAdmin = true };
             db.Users.Add(admin);
             db.Publish(admin.ToChangedEvent());
+        }
+        admin.IsSiteAdmin = true;
+
+        if (admin.PasswordHash is null)
+        {
+            var token = Login.IssueReset(db, admin, LinkLifetime, DateTime.UtcNow);
+            logger.LogWarning(
+                "The first admin {Email} has no password yet. Set one within 24 hours at {Url}",
+                email, $"{baseUrl.TrimEnd('/')}/Account/SetPassword?token={token}");
         }
         await db.SaveChangesAsync();
     }

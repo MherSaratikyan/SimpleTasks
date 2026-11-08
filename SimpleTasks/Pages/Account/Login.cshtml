@@ -1,24 +1,29 @@
 @page
 @model SimpleTasks.Pages.Account.LoginModel
 @{
-    ViewData["Title"] = "Sign in";
+    ViewData["Title"] = "Log in";
 }
 
 <div class="login-card">
-    <h1>Sign in to Simple Tasks</h1>
-    <p>Simple Tasks is invite only. Use the Google account your invite was sent to.</p>
+    <h1>Log in to Simple Tasks</h1>
 
-    @if (Model.GoogleEnabled)
+    @if (Model.Error is not null)
     {
-        <form method="post" asp-page-handler="Google">
-            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
-            <button class="button button-google" type="submit">Continue with Google</button>
-        </form>
+        <p class="toast toast-error" role="alert">@Model.Error</p>
     }
-    else
-    {
-        <p class="notice">Google sign-in isn't set up yet. See <code>docs/setup-google.md</code>.</p>
-    }
+
+    <form method="post" class="stack">
+        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+        <label>Email
+            <input name="email" type="email" value="@Model.Email" required autocomplete="username" autofocus />
+        </label>
+        <label>Password
+            <input name="password" type="password" required autocomplete="current-password" />
+        </label>
+        <button class="button primary" type="submit">Log in</button>
+    </form>
+    <p><a href="/Account/ForgotPassword">Forgot your password?</a></p>
+    <p class="hint">Simple Tasks is invite only. Your invite email has a link to set your password.</p>
 
     @if (Model.DevUsers.Count > 0)
     {

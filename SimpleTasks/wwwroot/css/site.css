@@ -141,7 +141,6 @@ label { display: block; color: var(--grey-700); font-size: 12px; font-weight: 60
 .button.primary { background: var(--blue); color: var(--white); }
 .button.primary:hover { background: var(--blue-dark); }
 .button-danger { background: var(--red-soft); color: var(--red); }
-.button-google { width: 100%; background: var(--blue); color: var(--white); padding: 10px; }
 .link-button { padding: 0; border: 0; background: none; color: var(--blue); font: inherit; cursor: pointer; }
 .link-button:hover { text-decoration: underline; }
 

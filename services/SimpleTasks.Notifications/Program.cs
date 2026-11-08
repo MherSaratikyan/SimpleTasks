@@ -32,6 +32,7 @@ else
 builder.Services.AddMessaging<NotificationsDb>("notifications", messaging => messaging
     .Handle<UserChanged, UserChangedHandler>()
     .Handle<InviteCreated, InviteCreatedHandler>()
+    .Handle<PasswordResetRequested, PasswordResetRequestedHandler>()
     .Handle<TicketChanged, TicketChangedHandler>()
     .Handle<TicketAssigned, TicketAssignedHandler>()
     .Handle<CommentAdded, CommentAddedHandler>()

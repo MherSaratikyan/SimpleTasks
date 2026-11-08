@@ -59,8 +59,23 @@ public sealed class InviteCreatedHandler(NotificationsDb db) : IEventHandler<Inv
         {
             To = message.Email,
             Subject = $"You're invited to {target}",
-            Body = $"You've been invited to {target}. Sign in with this Google account before {message.ExpiresAt:dd MMM yyyy} (UTC).",
-            LinkPath = "/"
+            Body = $"You've been invited to {target}. Open the link to choose your password. It works once and expires on {message.ExpiresAt:dd MMM yyyy} (UTC).",
+            LinkPath = message.SetupToken is null ? "/" : $"/Account/SetPassword?token={Uri.EscapeDataString(message.SetupToken)}"
+        });
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class PasswordResetRequestedHandler(NotificationsDb db) : IEventHandler<PasswordResetRequested>
+{
+    public Task HandleAsync(PasswordResetRequested message, CancellationToken ct)
+    {
+        db.Emails.Add(new EmailMessage
+        {
+            To = message.Email,
+            Subject = "Set your Simple Tasks password",
+            Body = $"Open the link to set a new password. It works once and expires at {message.ExpiresAt:dd MMM yyyy HH:mm} (UTC). If you didn't ask for this, you can ignore this email.",
+            LinkPath = $"/Account/SetPassword?token={Uri.EscapeDataString(message.Token)}"
         });
         return Task.CompletedTask;
     }

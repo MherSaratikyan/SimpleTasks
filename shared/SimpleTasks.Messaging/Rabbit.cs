@@ -21,7 +21,7 @@ public static class Topology
         ["work"] = [nameof(UserChanged), nameof(ProjectMembershipGranted)],
         ["notifications"] =
         [
-            nameof(UserChanged), nameof(InviteCreated), nameof(TicketChanged), nameof(TicketAssigned),
+            nameof(UserChanged), nameof(InviteCreated), nameof(PasswordResetRequested), nameof(TicketChanged), nameof(TicketAssigned),
             nameof(CommentAdded), nameof(EstimateChanged), nameof(EstimateThresholdCrossed)
         ]
     };

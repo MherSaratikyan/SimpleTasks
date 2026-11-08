@@ -142,15 +142,66 @@ public sealed class SystemFixture : IAsyncLifetime
         return client;
     }
 
-    public async Task<HttpResponseMessage> TrySignInAsync(string email) =>
-        await InternalClient().PostAsJsonAsync("/internal/sign-in", new { email, displayName = email.Split('@')[0] });
+    public const string TestPassword = "correct horse battery";
 
-    public async Task<TestUser> SignInAsync(string email)
+    private readonly SemaphoreSlim _adminGate = new(1, 1);
+    private TestUser? _admin;
+
+    public Task<HttpResponseMessage> TryLoginAsync(string email, string password) =>
+        InternalClient().PostAsJsonAsync("/internal/login", new { email, password });
+
+    public async Task<TestUser> LoginAsync(string email, string password = TestPassword)
     {
-        using var response = await TrySignInAsync(email);
+        using var response = await TryLoginAsync(email, password);
         response.EnsureSuccessStatusCode();
         var user = (await response.Content.ReadFromJsonAsync<SignedIn>())!;
         return new TestUser(user.UserId, email, await TokenAsync(user.UserId), this);
+    }
+
+    /// <summary>Waits for the email Notifications sent to this address and returns the token in its link.</summary>
+    public async Task<string> LinkTokenAsync(string to, string subjectStart)
+    {
+        EmailMessage? email = null;
+        await WaitUntilAsync(() =>
+        {
+            email = Emails.Sent.Where(sent => sent.To == to && sent.Subject.StartsWith(subjectStart, StringComparison.Ordinal))
+                .OrderByDescending(sent => sent.NextAttemptAt).FirstOrDefault();
+            return Task.FromResult(email is not null);
+        }, $"the \"{subjectStart}\" email to {to}");
+        var link = email!.LinkPath!;
+        return Uri.UnescapeDataString(link[(link.IndexOf("token=", StringComparison.Ordinal) + "token=".Length)..]);
+    }
+
+    public Task<HttpResponseMessage> SetPasswordAsync(string token, string password, string? displayName = null) =>
+        InternalClient().PostAsJsonAsync("/internal/password", new { token, password, displayName });
+
+    /// <summary>Follows the invite email: choose a name and password, then log in.</summary>
+    public async Task<TestUser> AcceptInviteAsync(string email)
+    {
+        var token = await LinkTokenAsync(email, "You're invited");
+        (await SetPasswordAsync(token, TestPassword, email.Split('@')[0])).EnsureSuccessStatusCode();
+        return await LoginAsync(email);
+    }
+
+    /// <summary>The first admin gets in the way a real one would: through the setup link emailed at startup.</summary>
+    public async Task<TestUser> AdminAsync()
+    {
+        await _adminGate.WaitAsync();
+        try
+        {
+            if (_admin is null)
+            {
+                var token = await LinkTokenAsync(FirstAdminEmail, "Set your Simple Tasks password");
+                (await SetPasswordAsync(token, TestPassword)).EnsureSuccessStatusCode();
+                _admin = await LoginAsync(FirstAdminEmail);
+            }
+            // A fresh service token each time, so long test runs never use an expired one.
+            return _admin with { Token = await TokenAsync(_admin.Id) };
+        }
+        finally
+        {
+            _adminGate.Release();
+        }
     }
 
     public async Task<string> TokenAsync(Guid userId)

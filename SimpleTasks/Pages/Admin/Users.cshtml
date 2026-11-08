@@ -12,7 +12,7 @@
     <button class="button primary" type="submit">Send invite</button>
 </form>
 
-<table class="issue-table">
+<div class="table-card"><table class="issue-table">
     <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
     <tbody>
         @foreach (var user in Model.Users)
@@ -32,7 +32,7 @@
             </tr>
         }
     </tbody>
-</table>
+</table></div>
 
 <h2>Invites</h2>
 @if (Model.Invites.Count == 0)
@@ -41,7 +41,7 @@
 }
 else
 {
-    <table class="issue-table">
+    <div class="table-card"><table class="issue-table">
         <thead><tr><th>Email</th><th>Project</th><th>Status</th></tr></thead>
         <tbody>
             @foreach (var invite in Model.Invites)
@@ -66,5 +66,5 @@ else
                 </tr>
             }
         </tbody>
-    </table>
+    </table></div>
 }

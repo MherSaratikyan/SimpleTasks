@@ -4,8 +4,8 @@
     Layout = null;
 }
 <details class="menu bell">
-    <summary aria-label="Notifications: @(Model.Feed?.Unread ?? 0) unread">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.4-2h-4.8A2.5 2.5 0 0 0 12 22Zm7-6v-5a7 7 0 0 0-5.5-6.8V3.5a1.5 1.5 0 0 0-3 0v.7A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z" /></svg>
+    <summary class="icon-button" aria-label="Notifications: @(Model.Feed?.Unread ?? 0) unread">
+        @Ui.Icon("bell")
         @if (Model.Feed is { Unread: > 0 } unread)
         {
             <span class="bell-count">@(unread.Unread > 99 ? "99+" : unread.Unread)</span>

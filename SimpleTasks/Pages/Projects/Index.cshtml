@@ -21,13 +21,14 @@
 @if (Model.Projects.Count == 0)
 {
     <div class="empty">
+        <span class="empty-icon">@Ui.Icon("folder-kanban")</span>
         <h2>No projects yet</h2>
         <p>@(isSiteAdmin ? "Create your first project above." : "Ask a Project Admin to add you to a project.")</p>
     </div>
 }
 else
 {
-    <table class="issue-table">
+    <div class="table-card"><table class="issue-table">
         <thead><tr><th>Name</th><th>Key</th><th>Your role</th></tr></thead>
         <tbody>
             @foreach (var project in Model.Projects)
@@ -39,5 +40,5 @@ else
                 </tr>
             }
         </tbody>
-    </table>
+    </table></div>
 }

@@ -9,13 +9,14 @@
 @if (Model.Tickets.Count == 0)
 {
     <div class="empty">
+        <span class="empty-icon">@Ui.Icon("inbox")</span>
         <h2>Nothing assigned to you</h2>
         <p>Tickets assigned to you will appear here. <a href="/projects">Browse your projects</a>.</p>
     </div>
 }
 else
 {
-    <table class="issue-table">
+    <div class="table-card"><table class="issue-table">
         <thead>
             <tr><th>Type</th><th>Key</th><th>Summary</th><th>Status</th><th>Priority</th><th>Due</th></tr>
         </thead>
@@ -24,7 +25,7 @@ else
             {
                 <tr>
                     <td><partial name="_TypeIcon" model="ticket.Type" /></td>
-                    <td><a href="/tickets/@ticket.Key">@ticket.Key</a></td>
+                    <td><a class="key-link" href="/tickets/@ticket.Key">@ticket.Key</a></td>
                     <td>@ticket.Title</td>
                     <td><span class="lozenge @ticket.Status.Css()">@ticket.Status.Name()</span></td>
                     <td><partial name="_PriorityIcon" model="ticket.Priority" /></td>
@@ -32,5 +33,5 @@ else
                 </tr>
             }
         </tbody>
-    </table>
+    </table></div>
 }

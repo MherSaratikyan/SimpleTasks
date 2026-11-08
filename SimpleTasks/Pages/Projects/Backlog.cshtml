@@ -7,19 +7,20 @@
     var tickets = Model.Tickets.OrderBy(ticket => ticket.Status == TicketStatus.Done).ThenBy(ticket => ticket.Rank).ToList();
 }
 
-<div class="page-title"><h1>Backlog</h1></div>
+<div class="page-title"><div><h1>Backlog</h1><p>@Model.Project.Name &middot; @Model.Tickets.Count tickets</p></div></div>
 <partial name="_Filters" model="Model" />
 
 @if (tickets.Count == 0)
 {
     <div class="empty">
+        <span class="empty-icon">@Ui.Icon("list")</span>
         <h2>No tickets here</h2>
         <p>Create a ticket, or clear your filters.</p>
     </div>
 }
 else
 {
-    <table class="issue-table">
+    <div class="table-card"><table class="issue-table">
         <thead>
             <tr><th>Type</th><th>Key</th><th>Summary</th><th>Labels</th><th>Status</th><th>Priority</th><th>Estimate</th><th>Due</th><th>Assignee</th></tr>
         </thead>
@@ -28,7 +29,7 @@ else
             {
                 <tr>
                     <td><partial name="_TypeIcon" model="ticket.Type" /></td>
-                    <td><a href="/tickets/@ticket.Key" hx-get="/tickets/@ticket.Key?panel=true" hx-target="#panel">@ticket.Key</a></td>
+                    <td><a class="key-link" href="/tickets/@ticket.Key" hx-get="/tickets/@ticket.Key?panel=true" hx-target="#panel">@ticket.Key</a></td>
                     <td>@ticket.Title</td>
                     <td>
                         @foreach (var label in ticket.Labels)
@@ -44,5 +45,5 @@ else
                 </tr>
             }
         </tbody>
-    </table>
+    </table></div>
 }

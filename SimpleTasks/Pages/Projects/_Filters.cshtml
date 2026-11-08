@@ -1,6 +1,9 @@
 @model SimpleTasks.Pages.Projects.TicketListPage
 <form method="get" class="filters" aria-label="Filter tickets">
-    <input type="search" name="q" value="@Model.Q" placeholder="Search tickets" aria-label="Search tickets" />
+    <div class="search-field">
+        @Ui.Icon("search")
+        <input type="search" name="q" value="@Model.Q" placeholder="Search tickets" aria-label="Search tickets" />
+    </div>
     <select name="assignee" aria-label="Assignee">
         <option value="">Assignee</option>
         @foreach (var member in Model.Members)
@@ -35,6 +38,6 @@
     @if (Model.CanEdit)
     {
         <a class="button primary" href="/projects/@Model.Project.Key/tickets/new"
-           hx-get="/projects/@Model.Project.Key/tickets/new?panel=true" hx-target="#panel">Create</a>
+           hx-get="/projects/@Model.Project.Key/tickets/new?panel=true" hx-target="#panel">@Ui.Icon("plus") Create ticket</a>
     }
 </form>

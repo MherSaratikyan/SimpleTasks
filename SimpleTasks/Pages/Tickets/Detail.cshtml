@@ -20,7 +20,7 @@
     @if (Model.Panel)
     {
         <partial name="_Toasts" model="Model" />
-        <button type="button" class="panel-close" aria-label="Close">&times;</button>
+        <button type="button" class="icon-button panel-close" aria-label="Close">@Ui.Icon("x")</button>
     }
     <p class="crumbs">
         <a href="/projects/@ticket.ProjectKey/board">@ticket.ProjectName</a> /
@@ -36,6 +36,7 @@
 
     <div class="ticket-layout">
         <div class="ticket-main">
+            <section class="section-card">
             <form method="post" asp-antiforgery="true" class="stack" action="@Post("Save")" hx-post="@Post("Save")" hx-target="#panel" hx-disable="@(!Model.Panel)">
                 <fieldset disabled="@(!canEdit)" class="plain">
                     <label>Status
@@ -53,8 +54,14 @@
                     }
                 </fieldset>
             </form>
+            </section>
 
-            <h2>Comments</h2>
+            <section class="section-card">
+            <h2>@Ui.Icon("message-square") Comments</h2>
+            @if (ticket.Comments.Count == 0)
+            {
+                <p class="hint">No comments yet.</p>
+            }
             @foreach (var comment in ticket.Comments)
             {
                 <div class="comment">
@@ -74,18 +81,22 @@
                     <button class="button" type="submit">Comment</button>
                 </form>
             }
+            </section>
 
-            <h2>Activity</h2>
+            <section class="section-card">
+            <h2>@Ui.Icon("clock") Activity</h2>
             <ul class="activity">
                 @foreach (var entry in ticket.Activity)
                 {
                     <li><strong>@(entry.Actor?.DisplayName ?? "System")</strong> @entry.Text <small>@Time.Show(entry.CreatedAt)</small></li>
                 }
             </ul>
+            </section>
         </div>
 
         <aside class="ticket-side">
-            <h2>Time tracking</h2>
+            <section class="section-card">
+            <h2>@Ui.Icon("timer") Time tracking</h2>
             @if (card.EstimateMinutes is null)
             {
                 <p class="chip chip-warn">No estimate</p>
@@ -118,10 +129,12 @@
                     }
                 </ul>
             }
+            </section>
 
             @if (card.DeletedAt is null)
             {
-                <h2>Remind me</h2>
+                <section class="section-card">
+                <h2>@Ui.Icon("alarm-clock") Remind me</h2>
                 @foreach (var reminder in Model.Reminders)
                 {
                     <form method="post" asp-antiforgery="true" class="reminder" action="@Post("DeleteReminder")" hx-post="@Post("DeleteReminder")" hx-target="#panel" hx-disable="@(!Model.Panel)">
@@ -139,9 +152,11 @@
                     </label>
                     <button class="button" type="submit">Set reminder</button>
                 </form>
+                </section>
             }
 
-            <h2>Details</h2>
+            <section class="section-card">
+            <h2>@Ui.Icon("tag") Details</h2>
             <dl class="details">
                 <dt>Reporter</dt><dd>@(ticket.Reporter?.DisplayName ?? "None")</dd>
                 <dt>Created</dt><dd>@Time.Show(ticket.CreatedAt)</dd>
@@ -150,10 +165,11 @@
 
             @if (canAdminister && card.DeletedAt is null)
             {
-                <form method="post" asp-antiforgery="true" action="/tickets/@card.Key?handler=Delete">
-                    <button class="button button-danger" type="submit">Delete ticket</button>
+                <form method="post" asp-antiforgery="true" action="/tickets/@card.Key?handler=Delete" style="margin-top:16px">
+                    <button class="button button-danger" type="submit">@Ui.Icon("trash-2") Delete ticket</button>
                 </form>
             }
+            </section>
         </aside>
     </div>
 </div>

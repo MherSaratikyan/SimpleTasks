@@ -2,8 +2,11 @@
 @{
     var project = ViewData["Project"] as ProjectView;
     var section = ViewData["Section"] as string;
+    var authPage = ViewData["AuthPage"] is true;
     var signedIn = User.Identity?.IsAuthenticated == true;
     var me = new UserRef(Guid.Empty, User.FindFirstValue(ClaimTypes.Name) ?? "", User.FindFirstValue(AppClaims.Avatar));
+    var path = Context.Request.Path.Value ?? "/";
+    string Active(bool on) => on ? "active" : "";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -12,67 +15,108 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="same-origin" />
     <title>@ViewData["Title"] - Simple Tasks</title>
+    @* Applies a saved theme before anything paints, so the page never flashes the wrong one. *@
+    <script>try { var t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) { }</script>
+    <link rel="preload" href="~/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <meta name="request-token" content="@(Context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>().GetAndStoreTokens(Context).RequestToken)" />
 </head>
 <body>
-    <header class="topbar">
-        <a class="brand" href="/">
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 4h16v4H4zM4 10h10v4H4zM4 16h13v4H4z" /></svg>
-            Simple Tasks
-        </a>
-        @if (signedIn)
-        {
-            <nav class="topnav" aria-label="Main">
-                <a href="/">Your work</a>
-                <a href="/projects">Projects</a>
-                @if (User.HasClaim(AppClaims.SiteAdmin, "true"))
-                {
-                    <a href="/admin/users">People</a>
-                }
-            </nav>
-            <span class="spacer"></span>
-            <div id="bell" hx-get="/notifications/bell" hx-trigger="load, notify from:body" hx-swap="innerHTML"></div>
-            <details class="menu">
-                <summary aria-label="Your account"><partial name="_Avatar" model="me" /></summary>
-                <div class="menu-body">
-                    <p class="menu-name">@me.DisplayName</p>
-                    <a href="/settings">Settings</a>
-                    <form method="post" asp-page="/Account/Logout"><button type="submit" class="link-button">Sign out</button></form>
+    @if (authPage)
+    {
+        <div class="auth-shell">
+            <section class="auth-hero" aria-hidden="true">
+                <div class="brand"><span class="brand-mark">@Ui.Icon("square-kanban")</span> Simple Tasks</div>
+                <div>
+                    <h2>Plan it. Track it. Ship it together.</h2>
+                    <ul>
+                        <li>@Ui.Icon("square-kanban") Boards your whole team can drag and drop</li>
+                        <li>@Ui.Icon("timer") Estimates that warn you before they slip</li>
+                        <li>@Ui.Icon("alarm-clock") Reminders so nothing goes overdue</li>
+                    </ul>
                 </div>
-            </details>
-        }
-    </header>
-
-    <div class="shell">
-        @if (project is not null)
-        {
-            <aside class="sidebar" aria-label="Project">
-                <div class="sidebar-project">
-                    <span class="project-badge">@project.Key[..1]</span>
-                    <div>
-                        <strong>@project.Name</strong>
-                        <small>@project.Role.Name()</small>
-                    </div>
+                <small>Invite only. Ask your admin for access.</small>
+            </section>
+            <main class="auth-main">
+                <div class="login-card">
+                    @if (Model is PageBase authToasts)
+                    {
+                        <partial name="_Toasts" model="authToasts" />
+                    }
                 </div>
-                <nav>
-                    <a href="/projects/@project.Key/board" class="@(section == "board" ? "active" : "")">Board</a>
-                    <a href="/projects/@project.Key/backlog" class="@(section == "backlog" ? "active" : "")">Backlog</a>
-                    <a href="/projects/@project.Key/settings" class="@(section == "settings" ? "active" : "")">Project settings</a>
-                </nav>
-            </aside>
-        }
-        <main class="content">
-            @if (Model is PageBase page)
+                @RenderBody()
+            </main>
+        </div>
+    }
+    else
+    {
+        <header class="topbar">
+            <a class="brand" href="/" aria-label="Simple Tasks home">
+                <span class="brand-mark">@Ui.Icon("square-kanban")</span>
+                <span class="brand-name">Simple Tasks</span>
+            </a>
+            @if (signedIn)
             {
-                <partial name="_Toasts" model="page" />
+                <nav class="topnav" aria-label="Main">
+                    <a href="/" class="@Active(path == "/")">@Ui.Icon("home") <span class="topnav-label">Your work</span></a>
+                    <a href="/projects" class="@Active(path.StartsWith("/projects", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/tickets", StringComparison.OrdinalIgnoreCase))">@Ui.Icon("folder-kanban") <span class="topnav-label">Projects</span></a>
+                    @if (User.HasClaim(AppClaims.SiteAdmin, "true"))
+                    {
+                        <a href="/admin/users" class="@Active(path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase))">@Ui.Icon("users") <span class="topnav-label">People</span></a>
+                    }
+                </nav>
             }
-            @RenderBody()
-        </main>
-    </div>
+            <span class="spacer"></span>
+            <button type="button" class="icon-button" data-theme-toggle aria-label="Switch between light and dark theme" title="Switch theme">
+                <span class="theme-icon-light">@Ui.Icon("moon")</span>
+                <span class="theme-icon-dark">@Ui.Icon("sun")</span>
+            </button>
+            @if (signedIn)
+            {
+                <div id="bell" hx-get="/notifications/bell" hx-trigger="load, notify from:body" hx-swap="innerHTML"></div>
+                <details class="menu">
+                    <summary aria-label="Your account"><partial name="_Avatar" model="me" /></summary>
+                    <div class="menu-body">
+                        <p class="menu-name">@me.DisplayName<small>@User.FindFirstValue(ClaimTypes.Email)</small></p>
+                        <div class="menu-divider"></div>
+                        <a href="/settings">@Ui.Icon("settings") Settings</a>
+                        <form method="post" asp-page="/Account/Logout"><button type="submit" class="menu-item">@Ui.Icon("log-out") Log out</button></form>
+                    </div>
+                </details>
+            }
+        </header>
 
-    <div id="panel-backdrop" hidden></div>
-    <aside id="panel" class="panel" aria-label="Ticket" hidden></aside>
+        <div class="shell">
+            @if (project is not null)
+            {
+                <aside class="sidebar" aria-label="Project">
+                    <div class="sidebar-project">
+                        <span class="project-badge">@project.Key[..1]</span>
+                        <div>
+                            <strong>@project.Name</strong>
+                            <small>@project.Role.Name()</small>
+                        </div>
+                    </div>
+                    <p class="sidebar-label">Planning</p>
+                    <nav>
+                        <a href="/projects/@project.Key/board" class="@Active(section == "board")">@Ui.Icon("square-kanban") Board</a>
+                        <a href="/projects/@project.Key/backlog" class="@Active(section == "backlog")">@Ui.Icon("list") Backlog</a>
+                        <a href="/projects/@project.Key/settings" class="@Active(section == "settings")">@Ui.Icon("settings") Project settings</a>
+                    </nav>
+                </aside>
+            }
+            <main class="content">
+                @if (Model is PageBase page)
+                {
+                    <partial name="_Toasts" model="page" />
+                }
+                @RenderBody()
+            </main>
+        </div>
+
+        <div id="panel-backdrop" hidden></div>
+        <aside id="panel" class="panel" aria-label="Ticket" hidden></aside>
+    }
 
     <script src="~/lib/htmx.min.js"></script>
     <script src="~/lib/Sortable.min.js"></script>

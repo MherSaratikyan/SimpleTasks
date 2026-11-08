@@ -40,17 +40,34 @@
     document.body.addEventListener('htmx:responseError', () => toast('That couldn\'t be completed. Please try again.'));
     document.body.addEventListener('htmx:sendError', () => toast('Simple Tasks can\'t be reached right now.'));
 
-    backdrop.addEventListener('click', closePanel);
-    panel.addEventListener('click', event => {
-        if (event.target.closest('.panel-close')) {
-            closePanel();
+    // Sign-in pages have no panel.
+    if (panel && backdrop) {
+        backdrop.addEventListener('click', closePanel);
+        panel.addEventListener('click', event => {
+            if (event.target.closest('.panel-close')) {
+                closePanel();
+            }
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !panel.hidden) {
+                closePanel();
+            }
+        });
+    }
+
+    // Light and dark theme: follows the device until the person picks one, then remembers it.
+    document.querySelectorAll('[data-theme-toggle]').forEach(button => button.addEventListener('click', () => {
+        const root = document.documentElement;
+        const current = root.dataset.theme
+            ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const next = current === 'dark' ? 'light' : 'dark';
+        root.dataset.theme = next;
+        try {
+            localStorage.setItem('theme', next);
+        } catch {
+            // Private windows can refuse storage; the choice then lasts for this page only.
         }
-    });
-    document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && !panel.hidden) {
-            closePanel();
-        }
-    });
+    }));
 
     // Drag and drop on the board
     const board = document.querySelector('.board');
@@ -100,7 +117,10 @@
             .withAutomaticReconnect()
             .configureLogging(signalR.LogLevel.Error)
             .build();
-        connection.on('notify', () => document.body.dispatchEvent(new Event('notify')));
+        // A block body: returning a value here would tell SignalR the client is answering the server.
+        connection.on('notify', () => {
+            document.body.dispatchEvent(new Event('notify'));
+        });
         const start = () => connection.start().catch(() => setTimeout(start, 15000));
         start();
     }

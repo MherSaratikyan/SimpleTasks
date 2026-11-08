@@ -26,7 +26,7 @@
     </form>
 }
 
-<table class="issue-table">
+<div class="table-card"><table class="issue-table">
     <thead><tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead>
     <tbody>
         @foreach (var member in Model.Members)
@@ -64,7 +64,7 @@
             </tr>
         }
     </tbody>
-</table>
+</table></div>
 
 <h2>Labels</h2>
 @if (Model.CanAdminister)
@@ -100,7 +100,7 @@
     }
     else
     {
-        <table class="issue-table">
+        <div class="table-card"><table class="issue-table">
             <thead><tr><th>Key</th><th>Summary</th><th>Deleted</th><th></th></tr></thead>
             <tbody>
                 @foreach (var ticket in Model.Deleted)
@@ -118,6 +118,6 @@
                     </tr>
                 }
             </tbody>
-        </table>
+        </table></div>
     }
 }

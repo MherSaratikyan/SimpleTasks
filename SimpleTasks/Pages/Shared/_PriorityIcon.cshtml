@@ -1,2 +1,2 @@
 @model TicketPriority
-<span class="priority priority-@Model.ToString().ToLowerInvariant()" title="@Model priority" aria-label="@Model priority"></span>
+<span class="priority priority-@Model.ToString().ToLowerInvariant()" title="@Model priority" role="img" aria-label="@Model priority">@Ui.Icon(Model.IconName())</span>

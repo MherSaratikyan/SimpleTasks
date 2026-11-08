@@ -13,11 +13,13 @@
 <div class="ticket">
     @if (Model.Panel)
     {
-        <button type="button" class="panel-close" aria-label="Close">&times;</button>
+        <button type="button" class="icon-button panel-close" aria-label="Close">@Ui.Icon("x")</button>
     }
     <h1>Create ticket in @Model.Project.Name</h1>
+    <section class="section-card">
     <form method="post" class="stack" hx-post="@Url.Page("/Tickets/New", new { key = Model.Project.Key, panel = Model.Panel })" hx-target="#panel" hx-disable="@(!Model.Panel)">
         <partial name="_TicketFields" model="fields" />
         <button class="button primary" type="submit">Create</button>
     </form>
+    </section>
 </div>

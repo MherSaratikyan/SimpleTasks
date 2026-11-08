@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Html;
 using SimpleTasks.Contracts;
 
 namespace SimpleTasks.Services;
@@ -5,6 +6,28 @@ namespace SimpleTasks.Services;
 public static class Ui
 {
     public static readonly TicketStatus[] Statuses = Enum.GetValues<TicketStatus>();
+
+    private const string IconSprite = "/icons.svg?v=1";
+
+    /// <summary>An icon from the bundled Lucide sprite. Names are fixed strings in our own markup, never user input.</summary>
+    public static IHtmlContent Icon(string name, string? css = null) =>
+        new HtmlString($"<svg class=\"icon {css}\" aria-hidden=\"true\" focusable=\"false\"><use href=\"{IconSprite}#i-{name}\"></use></svg>");
+
+    public static string IconName(this TicketType type) => type switch
+    {
+        TicketType.Bug => "bug",
+        TicketType.Story => "bookmark",
+        _ => "square-check-big"
+    };
+
+    public static string IconName(this TicketPriority priority) => priority switch
+    {
+        TicketPriority.Highest => "chevrons-up",
+        TicketPriority.High => "chevron-up",
+        TicketPriority.Medium => "equal",
+        TicketPriority.Low => "chevron-down",
+        _ => "chevrons-down"
+    };
 
     public static string Name(this TicketStatus status) => status switch
     {
@@ -16,7 +39,8 @@ public static class Ui
 
     public static string Css(this TicketStatus status) => status switch
     {
-        TicketStatus.InProgress or TicketStatus.InReview => "lozenge-progress",
+        TicketStatus.InProgress => "lozenge-progress",
+        TicketStatus.InReview => "lozenge-review",
         TicketStatus.Done => "lozenge-done",
         _ => "lozenge-todo"
     };

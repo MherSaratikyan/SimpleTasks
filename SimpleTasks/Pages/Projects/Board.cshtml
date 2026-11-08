@@ -6,14 +6,14 @@
     ViewData["Section"] = "board";
 }
 
-<div class="page-title"><h1>@Model.Project.Name board</h1></div>
+<div class="page-title"><div><h1>Board</h1><p>@Model.Project.Name &middot; @Model.Tickets.Count tickets</p></div></div>
 <partial name="_Filters" model="Model" />
 
 <div class="board" data-can-edit="@Model.CanEdit.ToString().ToLowerInvariant()" data-move-url="@Url.Page("/Projects/Board", "Move", new { key = Model.Project.Key })">
     @foreach (var status in Ui.Statuses)
     {
         var cards = Model.Tickets.Where(ticket => ticket.Status == status).ToList();
-        <section class="column" aria-label="@status.Name()">
+        <section class="column column-@((int)status)" aria-label="@status.Name()">
             <h2>@status.Name() <span>@cards.Count</span></h2>
             <div class="column-cards" data-status="@((int)status)">
                 @foreach (var ticket in cards)
@@ -33,7 +33,7 @@
                         <div class="card-meta">
                             @if (ticket.DueAt is { } due)
                             {
-                                <span class="due @(due < DateTime.UtcNow && ticket.Status != TicketStatus.Done ? "overdue" : "")">@Time.ShowDate(due)</span>
+                                <span class="due @(due < DateTime.UtcNow && ticket.Status != TicketStatus.Done ? "overdue" : "")">@Ui.Icon("calendar", "icon-sm") @Time.ShowDate(due)</span>
                             }
                             @if (ticket.Estimate is null)
                             {
@@ -41,9 +41,15 @@
                             }
                             else
                             {
-                                <span class="chip @(ticket.LoggedMinutes > ticket.EstimateMinutes ? "chip-danger" : "")">@ticket.Logged / @ticket.Estimate</span>
+                                <span class="chip @(ticket.LoggedMinutes > ticket.EstimateMinutes ? "chip-danger" : "")">@Ui.Icon("timer", "icon-sm") @ticket.Logged / @ticket.Estimate</span>
                             }
                         </div>
+                        @if (ticket.EstimateMinutes is > 0)
+                        {
+                            <div class="card-progress @(ticket.LoggedMinutes > ticket.EstimateMinutes ? "over" : "")" role="img" aria-label="@Ui.PercentUsed(ticket)% of estimate used">
+                                <span style="width:@Ui.PercentUsed(ticket)%"></span>
+                            </div>
+                        }
                         <div class="card-footer">
                             <partial name="_TypeIcon" model="ticket.Type" />
                             <partial name="_PriorityIcon" model="ticket.Priority" />

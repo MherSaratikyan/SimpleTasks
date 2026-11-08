@@ -108,8 +108,9 @@ later, update `PublicUrl`; a DHCP reservation in the router keeps it fixed.
 
 ## Run with Docker Compose
 
-Compose builds an image for each service (`simpletasks-identity`, `-work`,
-`-notifications` and `-web`) and runs them with RabbitMQ. By default they use the
+Compose builds an image for each service (`saratikyan/simpletasks-identity`,
+`-work`, `-notifications` and `-web`, also published on Docker Hub) and runs them
+with RabbitMQ. By default they use the
 SQL Server already on this computer, so you keep your data. Stop the Visual Studio
 run first, because both use port 5080.
 
@@ -145,9 +146,44 @@ docker compose ps
 docker compose down
 ```
 
-After changing code, rebuild and restart with `docker compose up --build -d`. To run
+After changing code, rebuild and restart with `docker compose up --build -d`.
+
+### Publish and use the images from Docker Hub
+
+The images are public at https://hub.docker.com/u/saratikyan. To publish new versions,
+log in with `docker login`, build, then push. This pushes the `IMAGE_TAG` version,
+`latest` by default; to keep a version you can go back to, first set `IMAGE_TAG` in
+`.env` to the commit, such as `e670eef`, then build and push again with `latest`:
+
+```bash
+docker compose build
+```
+
+```bash
+docker compose push
+```
+
+On another computer you don't need the source code to run them, only `compose.yaml`
+and a `.env` file. Download the published images instead of building:
+
+```bash
+docker compose pull
+```
+
+```bash
+docker compose up -d --no-build
+```
+
+Set `IMAGE_TAG` in `.env` to run a specific version, such as a commit like `e670eef`.
+
+To run
 a separate SQL Server inside Compose instead, set `SQL_SERVER=db` in `.env` and add
 `--profile own-db` to the `up` command; that database starts empty.
+
+If the services keep restarting with "Network is unreachable" for an IPv6 address,
+`host.docker.internal` resolved to an address the containers can't reach. Set
+`SQL_SERVER=192.168.65.254,1433` in `.env`, Docker Desktop's IPv4 address for this
+computer, and run `docker compose up -d` again.
 
 ## Run the tests
 

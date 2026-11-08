@@ -19,13 +19,16 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.3-management
+    # RabbitMQ keeps its data under the hostname, so it has to stay the same.
+    hostname: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: simpletasks
       RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}"
     volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
+      - rabbitmq-data:/var/lib/rabbitmq/mnesia
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      # A plain port check: rabbitmq-diagnostics runs as root and can claim the Erlang cookie during boot.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5672"]
       interval: 10s
       timeout: 10s
       retries: 12

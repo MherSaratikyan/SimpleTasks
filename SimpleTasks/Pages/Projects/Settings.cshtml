@@ -121,3 +121,17 @@
         </table></div>
     }
 }
+
+@if (User.HasClaim(AppClaims.SiteAdmin, "true"))
+{
+    <h2 class="danger-heading">Danger zone</h2>
+    <form method="post" asp-page-handler="DeleteProject" class="danger-zone">
+        <div>
+            <strong>Delete this project</strong>
+            <p>Permanently deletes @Model.Project.Name with all its tickets, comments, work logs, history and labels. Pending invites are cancelled. This can't be undone.</p>
+        </div>
+        <label for="confirm">Type <code>@Model.Project.Key</code> to confirm</label>
+        <input id="confirm" name="confirm" required autocomplete="off" pattern="@Model.Project.Key" placeholder="@Model.Project.Key" />
+        <button class="button button-danger" type="submit">@Ui.Icon("trash-2") Delete project</button>
+    </form>
+}

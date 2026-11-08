@@ -55,6 +55,10 @@
                             <partial name="_PriorityIcon" model="ticket.Priority" />
                             <span class="card-key">@ticket.Key</span>
                             <span class="spacer"></span>
+                            @if (ticket.QaOwner is not null)
+                            {
+                                <span class="qa-badge" title="QA owner: @ticket.QaOwner.DisplayName"><partial name="_Avatar" model="ticket.QaOwner" /></span>
+                            }
                             <partial name="_Avatar" model="ticket.Assignee" />
                         </div>
                     </article>

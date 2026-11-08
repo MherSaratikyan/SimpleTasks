@@ -96,6 +96,13 @@ namespace SimpleTasks.Work.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("FromValue")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
                     b.Property<string>("Text")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -104,9 +111,15 @@ namespace SimpleTasks.Work.Data.Migrations
                     b.Property<Guid>("TicketId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ToValue")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TicketId");
+
+                    b.HasIndex("Kind", "CreatedAt");
 
                     b.ToTable("Activity");
                 });
@@ -253,7 +266,19 @@ namespace SimpleTasks.Work.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("AssignedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("AssignedById")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("AssigneeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CompletedById")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
@@ -284,6 +309,9 @@ namespace SimpleTasks.Work.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("QaOwnerId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<double>("Rank")

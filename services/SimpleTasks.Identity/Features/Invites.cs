@@ -86,3 +86,13 @@ public sealed class ProjectInviteRequestedHandler(IdentityDb db) : IEventHandler
         await Invites.CreateAsync(db, email, message.ProjectId, message.ProjectName, message.Role, message.InvitedBy, DateTime.UtcNow, ct);
     }
 }
+
+/// <summary>Invites to a deleted project can no longer be accepted, so they are removed.</summary>
+public sealed class ProjectDeletedHandler(IdentityDb db) : IEventHandler<ProjectDeleted>
+{
+    public async Task HandleAsync(ProjectDeleted message, CancellationToken ct)
+    {
+        var pending = await db.Invites.Where(invite => invite.ProjectId == message.ProjectId && invite.AcceptedAt == null).ToListAsync(ct);
+        db.Invites.RemoveRange(pending);
+    }
+}

@@ -34,6 +34,12 @@ public sealed record TicketChanged(
 public sealed record TicketAssigned(
     Guid TicketId, string Key, string Title, Guid AssigneeId, Guid ActorId) : IIntegrationEvent;
 
+public sealed record TicketReadyForReview(
+    Guid TicketId, string Key, string Title, Guid QaOwnerId, Guid ActorId) : IIntegrationEvent;
+
+/// <summary>A project and all its tickets were permanently deleted.</summary>
+public sealed record ProjectDeleted(Guid ProjectId, string ProjectKey, IReadOnlyList<Guid> TicketIds) : IIntegrationEvent;
+
 public sealed record CommentAdded(
     Guid TicketId, string Key, string Title, Guid ActorId, string ActorName,
     IReadOnlyList<Guid> Recipients) : IIntegrationEvent;
@@ -64,5 +70,6 @@ public enum NotificationType
     EstimateChanged = 2,
     EstimateAlert = 3,
     DueReminder = 4,
-    CustomReminder = 5
+    CustomReminder = 5,
+    ReviewRequested = 6
 }

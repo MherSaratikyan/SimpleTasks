@@ -49,6 +49,11 @@ public sealed class Ticket
     public TicketPriority Priority { get; set; } = TicketPriority.Medium;
     public Guid? AssigneeId { get; set; }
     public Guid? ReporterId { get; set; }
+    public Guid? AssignedById { get; set; }
+    public DateTime? AssignedAt { get; set; }
+    public Guid? QaOwnerId { get; set; }
+    public Guid? CompletedById { get; set; }
+    public DateTime? CompletedAt { get; set; }
     public int? EstimateMinutes { get; set; }
     public int LoggedMinutes { get; set; }
     public EstimateAlertLevel EstimateAlertLevel { get; set; }
@@ -94,6 +99,9 @@ public sealed class ActivityEntry
     public Guid TicketId { get; set; }
     public Guid? ActorId { get; set; }
     public string Text { get; set; } = string.Empty;
+    public Domain.HistoryKind Kind { get; set; }
+    public string? FromValue { get; set; }
+    public string? ToValue { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
@@ -172,6 +180,9 @@ public sealed class WorkDb(DbContextOptions<WorkDb> options) : DbContext(options
         model.Entity<WorkLog>().Property(log => log.Note).HasMaxLength(500);
         model.Entity<ActivityEntry>().HasOne<Ticket>().WithMany(ticket => ticket.Activity).HasForeignKey(entry => entry.TicketId);
         model.Entity<ActivityEntry>().Property(entry => entry.Text).HasMaxLength(500);
+        model.Entity<ActivityEntry>().Property(entry => entry.FromValue).HasMaxLength(300);
+        model.Entity<ActivityEntry>().Property(entry => entry.ToValue).HasMaxLength(300);
+        model.Entity<ActivityEntry>().HasIndex(entry => new { entry.Kind, entry.CreatedAt });
         model.Entity<UserCopy>(entity =>
         {
             entity.ToTable("Users");

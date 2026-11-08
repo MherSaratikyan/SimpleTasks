@@ -7,7 +7,7 @@ namespace SimpleTasks.Pages.Tickets;
 public sealed record TicketFieldsView(
     string? Title, string? Description, TicketType Type, TicketPriority Priority, Guid? AssigneeId,
     string? Estimate, DateTime? DueAt, IReadOnlyCollection<Guid> SelectedLabels,
-    IReadOnlyList<MemberView> Members, IReadOnlyList<LabelView> Labels);
+    IReadOnlyList<MemberView> Members, IReadOnlyList<LabelView> Labels, Guid? QaOwnerId = null);
 
 public sealed class TicketForm
 {
@@ -19,9 +19,10 @@ public sealed class TicketForm
     public string? Estimate { get; set; }
     public DateTime? DueAt { get; set; }
     public List<Guid> LabelIds { get; set; } = [];
+    public Guid? QaOwnerId { get; set; }
 
     public SaveTicket ToRequest(UserTime time) =>
-        new(Title, Description, Type, Priority, AssigneeId, Estimate, time.FromInput(DueAt), LabelIds);
+        new(Title, Description, Type, Priority, AssigneeId, Estimate, time.FromInput(DueAt), LabelIds, QaOwnerId);
 }
 
 public class NewModel(WorkClient work, UserTime time) : PageBase

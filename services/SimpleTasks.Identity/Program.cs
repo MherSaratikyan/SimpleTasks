@@ -25,8 +25,9 @@ builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSch
     options.TokenValidationParameters.IssuerSigningKey = tokens.Key;
 });
 
-builder.Services.AddMessaging<IdentityDb>("identity", messaging =>
-    messaging.Handle<ProjectInviteRequested, ProjectInviteRequestedHandler>());
+builder.Services.AddMessaging<IdentityDb>("identity", messaging => messaging
+    .Handle<ProjectInviteRequested, ProjectInviteRequestedHandler>()
+    .Handle<ProjectDeleted, ProjectDeletedHandler>());
 
 var app = builder.Build();
 

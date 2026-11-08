@@ -718,3 +718,95 @@ label { display: grid; gap: 6px; color: var(--text-2); font-size: 12px; font-wei
     .panel { padding: 20px 16px; }
     h1 { font-size: 22px; }
 }
+
+/* ---------- Ticket history and QA owner ---------- */
+.change { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 4px; font-size: 12px; }
+.change-from { padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); text-decoration: line-through; }
+.change-to { padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.qa-badge { position: relative; display: inline-flex; }
+.qa-badge::after {
+    content: "QA";
+    position: absolute;
+    right: -6px;
+    bottom: -4px;
+    padding: 0 3px;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--accent-text);
+    font-size: 8px;
+    font-weight: 800;
+    box-shadow: 0 0 0 1px var(--border);
+}
+.qa-badge .avatar { width: 24px; height: 24px; font-size: 10px; opacity: .85; }
+
+/* ---------- Danger zone ---------- */
+.danger-heading { color: var(--danger); }
+.danger-zone {
+    display: grid;
+    gap: 10px;
+    max-width: 620px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border));
+    border-radius: var(--radius-lg);
+}
+.danger-zone p { margin: 4px 0 0; color: var(--text-2); }
+.danger-zone code { padding: 1px 6px; border-radius: 4px; background: var(--surface-2); font-weight: 700; }
+.danger-zone .button { justify-self: start; }
+
+/* ---------- Statistics ---------- */
+/* Chart colours: the validated reference palette, stepped separately for each theme. */
+.viz-root {
+    --chart-surface: var(--surface);
+    --chart-text: var(--text);
+    --chart-muted: var(--text-3);
+    --chart-grid: var(--border);
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+}
+@media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+        --series-1: #3987e5;
+        --series-2: #d95926;
+        --series-3: #199e70;
+        --series-4: #c98500;
+    }
+}
+:root[data-theme="dark"] .viz-root {
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+}
+
+.segmented { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--surface-2); }
+.segmented a { padding: 6px 14px; border-radius: 999px; color: var(--text-2); font-weight: 600; white-space: nowrap; }
+.segmented a:hover { color: var(--text); text-decoration: none; }
+.segmented a.active { background: var(--surface); color: var(--accent-text); box-shadow: var(--shadow-sm); }
+
+.stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat-tile { display: grid; gap: 2px; padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.stat-tile span { color: var(--text-2); font-size: 12px; font-weight: 600; }
+.stat-tile strong { font-size: 30px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+.stat-tile small { color: var(--text-3); }
+
+.chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 8px; }
+.chart-card { min-width: 0; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.chart-card h2 { margin: 0 0 4px; }
+.chart-card .hint { margin: 0 0 8px; }
+.chart-wide { grid-column: 1 / -1; }
+/* The box height includes the axis band, so labels are never clipped. */
+.chart-box { position: relative; height: 280px; }
+.chart-box-short { height: 200px; }
+.table-card.flat { margin: 8px 0 0; box-shadow: none; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.sr-list { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.table-view { margin: 16px 0; }
+.table-view summary { margin-bottom: 12px; color: var(--accent-text); font-weight: 600; cursor: pointer; }
+
+@media (max-width: 900px) {
+    .chart-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.danger-zone label { display: block; }

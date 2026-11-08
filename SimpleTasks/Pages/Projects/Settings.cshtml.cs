@@ -53,6 +53,12 @@ public class SettingsModel(WorkClient work) : PageBase
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostDeleteProjectAsync(string key, string confirm, CancellationToken ct)
+    {
+        var deleted = await AttemptAsync(() => work.DeleteProjectAsync(key, confirm, ct), $"Deleted project {key.ToUpperInvariant()}.");
+        return deleted ? RedirectToPage("/Projects/Index") : RedirectToPage();
+    }
+
     public async Task<IActionResult> OnPostRestoreAsync(string ticketKey, CancellationToken ct)
     {
         await AttemptAsync(() => work.RestoreTicketAsync(ticketKey, ct), $"Restored {ticketKey}.");

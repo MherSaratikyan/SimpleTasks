@@ -17,12 +17,13 @@ public static class Topology
 
     public static readonly IReadOnlyDictionary<string, string[]> Subscriptions = new Dictionary<string, string[]>
     {
-        ["identity"] = [nameof(ProjectInviteRequested)],
+        ["identity"] = [nameof(ProjectInviteRequested), nameof(ProjectDeleted)],
         ["work"] = [nameof(UserChanged), nameof(ProjectMembershipGranted)],
         ["notifications"] =
         [
             nameof(UserChanged), nameof(InviteCreated), nameof(PasswordResetRequested), nameof(TicketChanged), nameof(TicketAssigned),
-            nameof(CommentAdded), nameof(EstimateChanged), nameof(EstimateThresholdCrossed)
+            nameof(CommentAdded), nameof(EstimateChanged), nameof(EstimateThresholdCrossed),
+            nameof(TicketReadyForReview), nameof(ProjectDeleted)
         ]
     };
 

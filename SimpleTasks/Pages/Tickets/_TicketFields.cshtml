@@ -31,6 +31,15 @@
             }
         </select>
     </label>
+    <label>QA owner
+        <select name="Form.QaOwnerId">
+            <option value="">None</option>
+            @foreach (var member in Model.Members)
+            {
+                <option value="@member.UserId" selected="@(member.UserId == Model.QaOwnerId)">@member.DisplayName</option>
+            }
+        </select>
+    </label>
     <label>Estimate
         <input name="Form.Estimate" value="@Model.Estimate" placeholder="2h, 1d 4h" />
     </label>

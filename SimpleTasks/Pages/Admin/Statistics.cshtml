@@ -1,0 +1,119 @@
+@page "/admin/statistics"
+@model SimpleTasks.Pages.Admin.StatisticsModel
+@{
+    ViewData["Title"] = "Statistics";
+    var stats = Model.Stats;
+    string Range(int days) => $"/admin/statistics?days={days}" + (Model.Project is null ? "" : $"&project={Model.Project}");
+}
+
+<div class="page-title">
+    <div>
+        <h1>Statistics</h1>
+        <p>@stats.From.ToString("dd MMM yyyy") &ndash; @stats.To.ToString("dd MMM yyyy") &middot; @(Model.Project ?? "All projects")</p>
+    </div>
+</div>
+
+<form method="get" class="filters" aria-label="Statistics filters">
+    <div class="segmented" role="group" aria-label="Date range">
+        @foreach (var days in SimpleTasks.Pages.Admin.StatisticsModel.Ranges)
+        {
+            <a href="@Range(days)" class="@(days == Model.Days ? "active" : "")" aria-current="@(days == Model.Days ? "true" : null)">Last @days days</a>
+        }
+    </div>
+    <input type="hidden" name="days" value="@Model.Days" />
+    <select name="project" aria-label="Project" onchange="this.form.requestSubmit()">
+        <option value="">All projects</option>
+        @foreach (var project in Model.Projects)
+        {
+            <option value="@project.Key" selected="@(project.Key == Model.Project)">@project.Name</option>
+        }
+    </select>
+    <noscript><button class="button" type="submit">Apply</button></noscript>
+</form>
+
+<div class="stat-tiles">
+    <div class="stat-tile"><span>Opened</span><strong>@stats.Opened</strong><small>new tickets</small></div>
+    <div class="stat-tile"><span>Closed</span><strong>@stats.Closed</strong><small>moved to Done</small></div>
+    <div class="stat-tile"><span>Reopened</span><strong>@stats.Reopened</strong><small>moved out of Done</small></div>
+    <div class="stat-tile"><span>Open now</span><strong>@stats.CurrentlyOpen</strong><small>not done</small></div>
+    <div class="stat-tile"><span>Average time to complete</span><strong>@Model.Hours(stats.AverageHoursToComplete)</strong><small>creation to Done</small></div>
+</div>
+
+<div class="viz-root chart-grid">
+    <section class="chart-card chart-wide">
+        <h2>Opened vs closed per day</h2>
+        <div class="chart-box"><canvas id="chart-flow" role="img" aria-label="Tickets opened and closed per day. The same numbers are in the daily table below."></canvas></div>
+    </section>
+    <section class="chart-card chart-wide">
+        <h2>Status changes per day</h2>
+        <p class="hint">Each bar counts the tickets moved into each status that day.</p>
+        <div class="chart-box"><canvas id="chart-moves" role="img" aria-label="Status changes per day by the status tickets moved into. The same numbers are in the daily table below."></canvas></div>
+    </section>
+    <section class="chart-card">
+        <h2>Tickets by status now</h2>
+        <div class="chart-box chart-box-short"><canvas id="chart-current" role="img" aria-label="Current number of tickets in each status."></canvas></div>
+        <ul class="sr-list">
+            @foreach (var item in stats.CurrentByStatus)
+            {
+                <li>@item.Status.Name(): @item.Count</li>
+            }
+        </ul>
+    </section>
+    <section class="chart-card">
+        <h2>People</h2>
+        @if (stats.People.Count == 0)
+        {
+            <p class="hint">No completed or assigned tickets in this range.</p>
+        }
+        else
+        {
+            <div class="table-card flat"><table class="issue-table">
+                <thead><tr><th>Name</th><th class="num">Completed</th><th class="num">Open, assigned</th></tr></thead>
+                <tbody>
+                    @foreach (var person in stats.People)
+                    {
+                        <tr><td>@person.Name</td><td class="num">@person.Completed</td><td class="num">@person.OpenAssigned</td></tr>
+                    }
+                </tbody>
+            </table></div>
+        }
+    </section>
+</div>
+
+@if (Model.Project is null && stats.Projects.Count > 0)
+{
+    <h2>Projects</h2>
+    <div class="table-card"><table class="issue-table">
+        <thead><tr><th>Project</th><th class="num">Opened</th><th class="num">Closed</th><th class="num">Open now</th></tr></thead>
+        <tbody>
+            @foreach (var project in stats.Projects)
+            {
+                <tr>
+                    <td><a href="/admin/statistics?days=@Model.Days&project=@project.Key">@project.Name</a> <span class="hint">@project.Key</span></td>
+                    <td class="num">@project.Opened</td><td class="num">@project.Closed</td><td class="num">@project.Open</td>
+                </tr>
+            }
+        </tbody>
+    </table></div>
+}
+
+<details class="table-view">
+    <summary>Show the daily numbers as a table</summary>
+    <div class="table-card"><table class="issue-table">
+        <thead><tr><th>Day</th><th class="num">Opened</th><th class="num">Closed</th><th class="num">To To Do</th><th class="num">To In Progress</th><th class="num">To In Review</th><th class="num">To Done</th></tr></thead>
+        <tbody>
+            @foreach (var day in stats.Days.Reverse())
+            {
+                <tr>
+                    <td>@day.Date.ToString("dd MMM yyyy")</td>
+                    <td class="num">@day.Opened</td><td class="num">@day.Closed</td><td class="num">@day.ToDo</td>
+                    <td class="num">@day.InProgress</td><td class="num">@day.InReview</td><td class="num">@day.Done</td>
+                </tr>
+            }
+        </tbody>
+    </table></div>
+</details>
+
+<script type="application/json" id="stats-data">@Html.Raw(Model.ChartJson())</script>
+<script src="~/lib/chart.umd.min.js"></script>
+<script src="~/js/statistics.js" asp-append-version="true"></script>

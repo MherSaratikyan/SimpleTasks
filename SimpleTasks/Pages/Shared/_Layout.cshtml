@@ -62,7 +62,8 @@
                     <a href="/projects" class="@Active(path.StartsWith("/projects", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/tickets", StringComparison.OrdinalIgnoreCase))">@Ui.Icon("folder-kanban") <span class="topnav-label">Projects</span></a>
                     @if (User.HasClaim(AppClaims.SiteAdmin, "true"))
                     {
-                        <a href="/admin/users" class="@Active(path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase))">@Ui.Icon("users") <span class="topnav-label">People</span></a>
+                        <a href="/admin/users" class="@Active(path.StartsWith("/admin/users", StringComparison.OrdinalIgnoreCase))">@Ui.Icon("users") <span class="topnav-label">People</span></a>
+                        <a href="/admin/statistics" class="@Active(path.StartsWith("/admin/statistics", StringComparison.OrdinalIgnoreCase))">@Ui.Icon("chart-column") <span class="topnav-label">Statistics</span></a>
                     }
                 </nav>
             }

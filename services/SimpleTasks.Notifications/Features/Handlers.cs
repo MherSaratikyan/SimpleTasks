@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using SimpleTasks.Contracts;
 using SimpleTasks.Messaging;
 using SimpleTasks.Notifications.Data;
@@ -133,5 +134,27 @@ public sealed class EstimateThresholdCrossedHandler(NotificationWriter writer) :
         {
             await writer.NotifyAsync(userId, NotificationType.EstimateAlert, title, body, message.Key, ct);
         }
+    }
+}
+
+public sealed class TicketReadyForReviewHandler(NotificationWriter writer) : IEventHandler<TicketReadyForReview>
+{
+    public Task HandleAsync(TicketReadyForReview message, CancellationToken ct) =>
+        writer.NotifyAsync(message.QaOwnerId, NotificationType.ReviewRequested,
+            $"{message.Key} is ready for your review", message.Title, message.Key, ct);
+}
+
+/// <summary>Forgets a deleted project's tickets: their copies, reminders and bell items.</summary>
+public sealed class ProjectDeletedHandler(NotificationsDb db) : IEventHandler<ProjectDeleted>
+{
+    public async Task HandleAsync(ProjectDeleted message, CancellationToken ct)
+    {
+        var ids = message.TicketIds;
+        db.Reminders.RemoveRange(await db.Reminders.Where(reminder => ids.Contains(reminder.TicketId)).ToListAsync(ct));
+        db.Tickets.RemoveRange(await db.Tickets.Where(ticket => ids.Contains(ticket.Id)).ToListAsync(ct));
+
+        // Bell items link to /tickets/KEY-123; the dash keeps project ST from matching STX.
+        var prefix = $"/tickets/{message.ProjectKey}-";
+        db.Notifications.RemoveRange(await db.Notifications.Where(item => item.Url.StartsWith(prefix)).ToListAsync(ct));
     }
 }

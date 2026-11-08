@@ -37,7 +37,9 @@ builder.Services.AddMessaging<NotificationsDb>("notifications", messaging => mes
     .Handle<TicketAssigned, TicketAssignedHandler>()
     .Handle<CommentAdded, CommentAddedHandler>()
     .Handle<EstimateChanged, EstimateChangedHandler>()
-    .Handle<EstimateThresholdCrossed, EstimateThresholdCrossedHandler>());
+    .Handle<EstimateThresholdCrossed, EstimateThresholdCrossedHandler>()
+    .Handle<TicketReadyForReview, TicketReadyForReviewHandler>()
+    .Handle<ProjectDeleted, ProjectDeletedHandler>());
 
 var app = builder.Build();
 

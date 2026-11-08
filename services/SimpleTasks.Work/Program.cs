@@ -32,6 +32,7 @@ app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapProjects();
 app.MapTickets();
+app.MapStatistics();
 
 await app.RunAsync();
 

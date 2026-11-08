@@ -11,7 +11,7 @@
     var canEdit = ticket.Role >= ProjectRole.Member && card.DeletedAt is null;
     var canAdminister = ticket.Role == ProjectRole.Admin;
     var fields = new SimpleTasks.Pages.Tickets.TicketFieldsView(card.Title, ticket.Description, card.Type, card.Priority, card.Assignee?.Id,
-        card.Estimate, card.DueAt, card.Labels.Select(label => label.Id).ToList(), Model.Members, Model.Labels);
+        card.Estimate, card.DueAt, card.Labels.Select(label => label.Id).ToList(), Model.Members, Model.Labels, card.QaOwner?.Id);
     var panelArg = Model.Panel ? "?panel=true" : "";
     string Post(string handler) => $"/tickets/{card.Key}?handler={handler}{(Model.Panel ? "&panel=true" : "")}";
 }
@@ -84,11 +84,25 @@
             </section>
 
             <section class="section-card">
-            <h2>@Ui.Icon("clock") Activity</h2>
+            <h2>@Ui.Icon("clock") History</h2>
             <ul class="activity">
                 @foreach (var entry in ticket.Activity)
                 {
-                    <li><strong>@(entry.Actor?.DisplayName ?? "System")</strong> @entry.Text <small>@Time.Show(entry.CreatedAt)</small></li>
+                    <li>
+                        <strong>@(entry.Actor?.DisplayName ?? "System")</strong> @(entry.Kind == 2 ? "changed the status" : entry.Text)
+                        @if (entry.To is not null && entry.Kind != 1)
+                        {
+                            <span class="change">
+                                @if (entry.From is not null)
+                                {
+                                    <span class="change-from">@entry.From</span>
+                                    <span aria-label="to">&rarr;</span>
+                                }
+                                <span class="change-to">@entry.To</span>
+                            </span>
+                        }
+                        <small>@Time.Show(entry.CreatedAt)</small>
+                    </li>
                 }
             </ul>
             </section>
@@ -158,8 +172,20 @@
             <section class="section-card">
             <h2>@Ui.Icon("tag") Details</h2>
             <dl class="details">
-                <dt>Reporter</dt><dd>@(ticket.Reporter?.DisplayName ?? "None")</dd>
-                <dt>Created</dt><dd>@Time.Show(ticket.CreatedAt)</dd>
+                <dt>Created by</dt><dd>@(ticket.Reporter?.DisplayName ?? "Imported")</dd>
+                <dt>Creation time</dt><dd>@Time.Show(ticket.CreatedAt)</dd>
+                <dt>Assignee</dt><dd>@(card.Assignee?.DisplayName ?? "Unassigned")</dd>
+                @if (card.Assignee is not null)
+                {
+                    <dt>Assigned by</dt>
+                    <dd>@(ticket.AssignedBy?.DisplayName ?? "Unknown")@(ticket.AssignedAt is { } assignedAt ? $", {Time.Show(assignedAt)}" : "")</dd>
+                }
+                <dt>QA owner</dt><dd>@(card.QaOwner?.DisplayName ?? "None")</dd>
+                @if (card.Status == TicketStatus.Done)
+                {
+                    <dt>Done by</dt><dd>@(ticket.CompletedBy?.DisplayName ?? "Unknown")</dd>
+                    <dt>Completion time</dt><dd>@(ticket.CompletedAt is { } completedAt ? Time.Show(completedAt) : "Unknown")</dd>
+                }
                 <dt>Updated</dt><dd>@Time.Show(ticket.UpdatedAt)</dd>
             </dl>
 

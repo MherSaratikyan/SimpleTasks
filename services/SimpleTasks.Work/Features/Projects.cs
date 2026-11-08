@@ -89,6 +89,37 @@ public static class Projects
                 : Results.Ok(new ProjectView(project.Id, project.Key, project.Name, project.Description, role.Value));
         });
 
+        // Permanent. The caller must type the project key, and other services are told to clean up.
+        group.MapDelete("/{key}", async (string key, string? confirm, WorkDb db, CancellationToken ct) =>
+        {
+            var project = await db.Projects.AsNoTracking().FirstOrDefaultAsync(project => project.Key == key.ToUpper(), ct);
+            if (project is null)
+            {
+                return Results.NotFound();
+            }
+            if (!string.Equals(confirm?.Trim(), project.Key, StringComparison.Ordinal))
+            {
+                return Results.BadRequest(new { error = $"Type {project.Key} to confirm." });
+            }
+
+            var strategy = db.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await db.Database.BeginTransactionAsync(ct);
+                var ticketIds = await db.Tickets.Where(ticket => ticket.ProjectId == project.Id).Select(ticket => ticket.Id).ToListAsync(ct);
+
+                // Comments, work logs, history and label links go with their tickets; labels and members with the project.
+                await db.Tickets.Where(ticket => ticket.ProjectId == project.Id).ExecuteDeleteAsync(ct);
+                await db.Projects.Where(item => item.Id == project.Id).ExecuteDeleteAsync(ct);
+
+                db.Publish(new ProjectDeleted(project.Id, project.Key, ticketIds));
+                await db.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
+                db.ChangeTracker.Clear();
+            });
+            return Results.NoContent();
+        }).RequireAuthorization(policy => policy.RequireClaim(Jwt.SiteAdminClaim, "true"));
+
         MapMembers(group);
         MapLabels(group);
     }

@@ -20,17 +20,29 @@ public sealed record UserRef(Guid Id, string DisplayName, string? AvatarUrl);
 public sealed record TicketCard(
     string Key, string Title, TicketType Type, TicketStatus Status, TicketPriority Priority, UserRef? Assignee,
     int? EstimateMinutes, int LoggedMinutes, string? Estimate, string Logged, DateTime? DueAt, double Rank,
-    IReadOnlyList<LabelView> Labels, DateTime? DeletedAt);
+    IReadOnlyList<LabelView> Labels, DateTime? DeletedAt, UserRef? QaOwner);
 public sealed record CommentView(Guid Id, UserRef? Author, string Body, DateTime CreatedAt);
 public sealed record WorkLogView(Guid Id, UserRef? User, string Time, string? Note, DateTime CreatedAt);
-public sealed record ActivityView(UserRef? Actor, string Text, DateTime CreatedAt);
+/// <summary>One history entry; Kind 2 is a status change. From and To are display text, or null.</summary>
+public sealed record ActivityView(UserRef? Actor, string Text, DateTime CreatedAt, int Kind, string? From, string? To);
 public sealed record TicketDetail(
     TicketCard Card, string? Description, UserRef? Reporter, DateTime CreatedAt, DateTime UpdatedAt, ProjectRole Role,
     string ProjectKey, string ProjectName,
-    IReadOnlyList<CommentView> Comments, IReadOnlyList<WorkLogView> WorkLogs, IReadOnlyList<ActivityView> Activity);
+    IReadOnlyList<CommentView> Comments, IReadOnlyList<WorkLogView> WorkLogs, IReadOnlyList<ActivityView> Activity,
+    UserRef? AssignedBy, DateTime? AssignedAt, UserRef? CompletedBy, DateTime? CompletedAt);
 public sealed record SaveTicket(
     string Title, string? Description, TicketType Type, TicketPriority Priority, Guid? AssigneeId,
-    string? Estimate, DateTime? DueAt, IReadOnlyList<Guid>? LabelIds);
+    string? Estimate, DateTime? DueAt, IReadOnlyList<Guid>? LabelIds, Guid? QaOwnerId);
+
+public sealed record DayStats(DateOnly Date, int Opened, int Closed, int ToDo, int InProgress, int InReview, int Done);
+public sealed record StatusTotal(TicketStatus Status, int Count);
+public sealed record PersonRow(Guid UserId, string Name, int Completed, int OpenAssigned);
+public sealed record ProjectRow(string Key, string Name, int Opened, int Closed, int Open);
+public sealed record StatisticsView(
+    DateOnly From, DateOnly To, string? ProjectKey,
+    int Opened, int Closed, int Reopened, int CurrentlyOpen, double? AverageHoursToComplete,
+    IReadOnlyList<DayStats> Days, IReadOnlyList<StatusTotal> CurrentByStatus,
+    IReadOnlyList<PersonRow> People, IReadOnlyList<ProjectRow> Projects);
 
 public sealed record NotificationView(Guid Id, NotificationType Type, string Title, string Body, string Url, DateTime CreatedAt, bool IsRead);
 public sealed record NotificationFeed(int Unread, IReadOnlyList<NotificationView> Items);
@@ -270,6 +282,13 @@ public sealed class WorkClient(HttpClient http) : ServiceClient(http)
         SendAsync(HttpMethod.Post, $"/api/tickets/{key}/work-logs", new { time, note }, ct);
     public Task DeleteTicketAsync(string key, CancellationToken ct) => SendAsync(HttpMethod.Delete, $"/api/tickets/{key}", null, ct);
     public Task RestoreTicketAsync(string key, CancellationToken ct) => SendAsync(HttpMethod.Post, $"/api/tickets/{key}/restore", new { }, ct);
+
+    public Task DeleteProjectAsync(string key, string confirm, CancellationToken ct) =>
+        SendAsync(HttpMethod.Delete, $"/api/projects/{Uri.EscapeDataString(key)}?confirm={Uri.EscapeDataString(confirm)}", null, ct);
+
+    public Task<StatisticsView> StatisticsAsync(int days, string? projectKey, string timeZone, CancellationToken ct) =>
+        GetAsync<StatisticsView>($"/api/statistics?days={days}&tz={Uri.EscapeDataString(timeZone)}"
+            + (string.IsNullOrEmpty(projectKey) ? string.Empty : $"&project={Uri.EscapeDataString(projectKey)}"), ct);
 
     private sealed record CreatedTicket(string Key);
 }

@@ -11,20 +11,23 @@ public sealed record UserRef(Guid Id, string DisplayName, string? AvatarUrl);
 public sealed record TicketCard(
     string Key, string Title, TicketType Type, TicketStatus Status, TicketPriority Priority, UserRef? Assignee,
     int? EstimateMinutes, int LoggedMinutes, string? Estimate, string Logged, DateTime? DueAt, double Rank,
-    IReadOnlyList<LabelView> Labels, DateTime? DeletedAt);
+    IReadOnlyList<LabelView> Labels, DateTime? DeletedAt, UserRef? QaOwner);
 public sealed record CommentView(Guid Id, UserRef? Author, string Body, DateTime CreatedAt);
 public sealed record WorkLogView(Guid Id, UserRef? User, string Time, string? Note, DateTime CreatedAt);
-public sealed record ActivityView(UserRef? Actor, string Text, DateTime CreatedAt);
+
+/// <summary>One history entry. From and To are ready to show; they're null when the entry has no before and after.</summary>
+public sealed record ActivityView(UserRef? Actor, string Text, DateTime CreatedAt, HistoryKind Kind, string? From, string? To);
 public sealed record TicketDetail(
     TicketCard Card, string? Description, UserRef? Reporter, DateTime CreatedAt, DateTime UpdatedAt, ProjectRole Role,
     string ProjectKey, string ProjectName,
-    IReadOnlyList<CommentView> Comments, IReadOnlyList<WorkLogView> WorkLogs, IReadOnlyList<ActivityView> Activity);
+    IReadOnlyList<CommentView> Comments, IReadOnlyList<WorkLogView> WorkLogs, IReadOnlyList<ActivityView> Activity,
+    UserRef? AssignedBy, DateTime? AssignedAt, UserRef? CompletedBy, DateTime? CompletedAt);
 public sealed record CreateTicketRequest(
     string Title, string? Description, TicketType Type, TicketPriority Priority, Guid? AssigneeId,
-    string? Estimate, DateTime? DueAt, IReadOnlyList<Guid>? LabelIds);
+    string? Estimate, DateTime? DueAt, IReadOnlyList<Guid>? LabelIds, Guid? QaOwnerId = null);
 public sealed record UpdateTicketRequest(
     string Title, string? Description, TicketType Type, TicketPriority Priority, Guid? AssigneeId,
-    string? Estimate, DateTime? DueAt, IReadOnlyList<Guid>? LabelIds);
+    string? Estimate, DateTime? DueAt, IReadOnlyList<Guid>? LabelIds, Guid? QaOwnerId = null);
 public sealed record MoveTicketRequest(TicketStatus Status, string? AfterKey, string? BeforeKey);
 public sealed record AddCommentRequest(string Body);
 public sealed record LogWorkRequest(string Time, string? Note);
@@ -87,7 +90,7 @@ public static class Tickets
 
         var items = await query.Include(ticket => ticket.Project).Include(ticket => ticket.Labels)
             .OrderBy(ticket => ticket.Rank).ToListAsync(ct);
-        var users = await LoadUsersAsync(db, items.Select(ticket => ticket.AssigneeId), ct);
+        var users = await LoadUsersAsync(db, items.SelectMany(ticket => new[] { ticket.AssigneeId, ticket.QaOwnerId }), ct);
         return Results.Ok(items.Select(ticket => ToCard(ticket, users)));
     }
 
@@ -117,10 +120,16 @@ public static class Tickets
             return Results.NotFound();
         }
 
+        var historyUsers = ticket.Activity
+            .Where(entry => entry.Kind is HistoryKind.Assignee or HistoryKind.QaOwner)
+            .SelectMany(entry => new[] { entry.FromValue, entry.ToValue })
+            .Select(value => Guid.TryParse(value, out var id) ? id : (Guid?)null);
         var users = await LoadUsersAsync(db, ticket.Comments.Select(comment => (Guid?)comment.AuthorId)
             .Concat(ticket.WorkLogs.Select(log => (Guid?)log.UserId))
             .Concat(ticket.Activity.Select(entry => entry.ActorId))
-            .Append(ticket.AssigneeId).Append(ticket.ReporterId), ct);
+            .Concat(historyUsers)
+            .Append(ticket.AssigneeId).Append(ticket.ReporterId).Append(ticket.QaOwnerId)
+            .Append(ticket.AssignedById).Append(ticket.CompletedById), ct);
         return Results.Ok(new TicketDetail(
             ToCard(ticket, users), ticket.Description, Ref(users, ticket.ReporterId), ticket.CreatedAt, ticket.UpdatedAt,
             role.Value, ticket.Project.Key, ticket.Project.Name,
@@ -129,8 +138,25 @@ public static class Tickets
             ticket.WorkLogs.OrderByDescending(log => log.CreatedAt)
                 .Select(log => new WorkLogView(log.Id, Ref(users, log.UserId), JiraDuration.Format(log.Minutes), log.Note, log.CreatedAt)).ToList(),
             ticket.Activity.OrderByDescending(entry => entry.CreatedAt)
-                .Select(entry => new ActivityView(Ref(users, entry.ActorId), entry.Text, entry.CreatedAt)).ToList()));
+                .Select(entry => new ActivityView(Ref(users, entry.ActorId), entry.Text, entry.CreatedAt, entry.Kind,
+                    Display(entry.Kind, entry.FromValue, users), Display(entry.Kind, entry.ToValue, users))).ToList(),
+            Ref(users, ticket.AssignedById), ticket.AssignedAt, Ref(users, ticket.CompletedById), ticket.CompletedAt));
     }
+
+    /// <summary>History stores ids and numbers so names stay current; this turns them into words.</summary>
+    private static string? Display(HistoryKind kind, string? value, Dictionary<Guid, UserCopy> users) => kind switch
+    {
+        HistoryKind.Status => int.TryParse(value, out var status) ? Name((TicketStatus)status) : null,
+        HistoryKind.Assignee or HistoryKind.QaOwner => value is null
+            ? (kind == HistoryKind.Assignee ? "Unassigned" : "None")
+            : Guid.TryParse(value, out var id) && users.TryGetValue(id, out var user) ? user.DisplayName : "Unknown user",
+        HistoryKind.Estimate => value is null ? "None" : int.TryParse(value, out var minutes) ? JiraDuration.Format(minutes) : value,
+        HistoryKind.Priority or HistoryKind.Type or HistoryKind.Title => value,
+        _ => null
+    };
+
+    private static void Record(WorkDb db, Ticket ticket, Guid? actor, HistoryKind kind, string text, string? from = null, string? to = null) =>
+        db.Activity.Add(new ActivityEntry { TicketId = ticket.Id, ActorId = actor, Kind = kind, Text = text, FromValue = from, ToValue = to });
 
     private static async Task<IResult> CreateAsync(
         string projectKey, CreateTicketRequest request, HttpContext http, ProjectGate gate, WorkDb db, CancellationToken ct)
@@ -144,12 +170,13 @@ public static class Tickets
         {
             return Results.Forbid();
         }
-        var error = await ValidateAsync(db, found.Id, request.Title, request.AssigneeId, request.Estimate, request.LabelIds, ct);
+        var error = await ValidateAsync(db, found.Id, request.Title, request.AssigneeId, request.Estimate, request.LabelIds, ct, request.QaOwnerId);
         if (error is not null)
         {
             return Results.BadRequest(new { error });
         }
 
+        var actor = http.User.UserId();
         for (var attempt = 1; ; attempt++)
         {
             try
@@ -168,19 +195,28 @@ public static class Tickets
                     Description = request.Description?.Trim(),
                     Type = request.Type,
                     Priority = request.Priority,
-                    AssigneeId = request.AssigneeId,
-                    ReporterId = http.User.UserId(),
+                    ReporterId = actor,
+                    QaOwnerId = request.QaOwnerId,
                     EstimateMinutes = ParseEstimate(request.Estimate),
                     DueAt = request.DueAt,
                     Rank = Ranking.Between(null, lowest),
                     Labels = await LoadLabelsAsync(db, project.Id, request.LabelIds, ct)
                 };
+                TicketLifecycle.ApplyAssignee(ticket, request.AssigneeId, actor, DateTime.UtcNow);
                 db.Tickets.Add(ticket);
-                db.Activity.Add(new ActivityEntry { TicketId = ticket.Id, ActorId = http.User.UserId(), Text = "created this ticket" });
+                Record(db, ticket, actor, HistoryKind.Created, "created this ticket", to: ((int)TicketStatus.ToDo).ToString());
+                if (ticket.AssigneeId is { } assigned)
+                {
+                    Record(db, ticket, actor, HistoryKind.Assignee, "assigned this ticket", null, assigned.ToString());
+                }
+                if (ticket.QaOwnerId is { } qa)
+                {
+                    Record(db, ticket, actor, HistoryKind.QaOwner, "set the QA owner", null, qa.ToString());
+                }
                 db.Publish(Snapshot(ticket));
                 if (ticket.AssigneeId is { } assigneeId)
                 {
-                    db.Publish(new TicketAssigned(ticket.Id, ticket.Key, ticket.Title, assigneeId, http.User.UserId()));
+                    db.Publish(new TicketAssigned(ticket.Id, ticket.Key, ticket.Title, assigneeId, actor));
                 }
                 await db.SaveChangesAsync(ct);
                 return Results.Ok(new { key = ticket.Key });
@@ -201,34 +237,35 @@ public static class Tickets
         {
             return denied!;
         }
-        var error = await ValidateAsync(db, ticket.ProjectId, request.Title, request.AssigneeId, request.Estimate, request.LabelIds, ct);
+        var error = await ValidateAsync(db, ticket.ProjectId, request.Title, request.AssigneeId, request.Estimate, request.LabelIds, ct, request.QaOwnerId);
         if (error is not null)
         {
             return Results.BadRequest(new { error });
         }
 
         var actor = http.User.UserId();
-        void Note(string text) => db.Activity.Add(new ActivityEntry { TicketId = ticket.Id, ActorId = actor, Text = text });
+        var now = DateTime.UtcNow;
 
         var title = request.Title.Trim();
         if (title != ticket.Title)
         {
-            Note($"renamed this ticket to \"{title}\"");
+            Record(db, ticket, actor, HistoryKind.Title, "renamed this ticket", ticket.Title, title);
             ticket.Title = title;
         }
         if (request.Type != ticket.Type)
         {
-            Note($"changed the type to {request.Type}");
+            Record(db, ticket, actor, HistoryKind.Type, "changed the type", ticket.Type.ToString(), request.Type.ToString());
             ticket.Type = request.Type;
         }
         if (request.Priority != ticket.Priority)
         {
-            Note($"changed the priority to {request.Priority}");
+            Record(db, ticket, actor, HistoryKind.Priority, "changed the priority", ticket.Priority.ToString(), request.Priority.ToString());
             ticket.Priority = request.Priority;
         }
         if (request.DueAt != ticket.DueAt)
         {
-            Note(request.DueAt is null ? "removed the due date" : "changed the due date");
+            Record(db, ticket, actor, HistoryKind.DueDate, request.DueAt is null ? "removed the due date" : "changed the due date",
+                ticket.DueAt?.ToString("O"), request.DueAt?.ToString("O"));
             ticket.DueAt = request.DueAt;
         }
         ticket.Description = request.Description?.Trim();
@@ -237,12 +274,22 @@ public static class Tickets
 
         if (request.AssigneeId != ticket.AssigneeId)
         {
-            ticket.AssigneeId = request.AssigneeId;
-            Note(request.AssigneeId is null ? "unassigned this ticket" : "changed the assignee");
+            Record(db, ticket, actor, HistoryKind.Assignee, request.AssigneeId is null ? "unassigned this ticket" : "changed the assignee",
+                ticket.AssigneeId?.ToString(), request.AssigneeId?.ToString());
+            TicketLifecycle.ApplyAssignee(ticket, request.AssigneeId, actor, now);
             if (request.AssigneeId is { } assigneeId)
             {
                 db.Publish(new TicketAssigned(ticket.Id, ticket.Key, ticket.Title, assigneeId, actor));
             }
+        }
+
+        if (request.QaOwnerId != ticket.QaOwnerId)
+        {
+            Record(db, ticket, actor, HistoryKind.QaOwner, request.QaOwnerId is null ? "removed the QA owner" : "changed the QA owner",
+                ticket.QaOwnerId?.ToString(), request.QaOwnerId?.ToString());
+            var before = ticket.QaOwnerId;
+            ticket.QaOwnerId = request.QaOwnerId;
+            RequestReviewIfNeeded(db, ticket, ticket.Status, before, actor);
         }
 
         var estimate = ParseEstimate(request.Estimate);
@@ -250,7 +297,8 @@ public static class Tickets
         {
             var old = ticket.EstimateMinutes;
             ticket.EstimateMinutes = estimate;
-            Note($"changed the estimate to {(estimate is null ? "none" : JiraDuration.Format(estimate.Value))}");
+            Record(db, ticket, actor, HistoryKind.Estimate,
+                $"changed the estimate to {(estimate is null ? "none" : JiraDuration.Format(estimate.Value))}", old?.ToString(), estimate?.ToString());
             db.Publish(new EstimateChanged(ticket.Id, ticket.Key, ticket.Title, old, estimate, actor,
                 Recipients(ticket).Where(id => id != actor).ToList()));
             RaiseEstimateAlert(db, ticket);
@@ -274,8 +322,12 @@ public static class Tickets
 
         if (request.Status != ticket.Status)
         {
-            db.Activity.Add(new ActivityEntry { TicketId = ticket.Id, ActorId = http.User.UserId(), Text = $"moved this ticket to {Name(request.Status)}" });
-            ticket.Status = request.Status;
+            var actor = http.User.UserId();
+            var statusBefore = ticket.Status;
+            Record(db, ticket, actor, HistoryKind.Status, $"moved this ticket to {Name(request.Status)}",
+                ((int)statusBefore).ToString(), ((int)request.Status).ToString());
+            TicketLifecycle.ApplyStatus(ticket, request.Status, actor, DateTime.UtcNow);
+            RequestReviewIfNeeded(db, ticket, statusBefore, ticket.QaOwnerId, actor);
         }
         var after = await RankOfAsync(db, ticket.ProjectId, request.AfterKey, ct);
         var before = await RankOfAsync(db, ticket.ProjectId, request.BeforeKey, ct);
@@ -306,7 +358,7 @@ public static class Tickets
         var actor = http.User.UserId();
         db.Comments.Add(new Comment { TicketId = ticket.Id, AuthorId = actor, Body = body });
         db.Publish(new CommentAdded(ticket.Id, ticket.Key, ticket.Title, actor, http.User.DisplayName(),
-            Recipients(ticket).Where(id => id != actor).ToList()));
+            Recipients(ticket).Append(ticket.QaOwnerId ?? actor).Distinct().Where(id => id != actor).ToList()));
         await db.SaveChangesAsync(ct);
         return Results.NoContent();
     }
@@ -326,7 +378,7 @@ public static class Tickets
 
         var actor = http.User.UserId();
         db.WorkLogs.Add(new WorkLog { TicketId = ticket.Id, UserId = actor, Minutes = minutes, Note = request.Note?.Trim() });
-        db.Activity.Add(new ActivityEntry { TicketId = ticket.Id, ActorId = actor, Text = $"logged {JiraDuration.Format(minutes)}" });
+        Record(db, ticket, actor, HistoryKind.WorkLogged, $"logged {JiraDuration.Format(minutes)}", to: minutes.ToString());
         ticket.LoggedMinutes += minutes;
         RaiseEstimateAlert(db, ticket);
         return await SaveAsync(db, ticket, ct);
@@ -340,7 +392,7 @@ public static class Tickets
             return denied!;
         }
         ticket.DeletedAt = DateTime.UtcNow;
-        db.Activity.Add(new ActivityEntry { TicketId = ticket.Id, ActorId = http.User.UserId(), Text = "deleted this ticket" });
+        Record(db, ticket, http.User.UserId(), HistoryKind.Deleted, "deleted this ticket");
         return await SaveAsync(db, ticket, ct);
     }
 
@@ -352,8 +404,16 @@ public static class Tickets
             return Results.NotFound();
         }
         ticket.DeletedAt = null;
-        db.Activity.Add(new ActivityEntry { TicketId = ticket.Id, ActorId = http.User.UserId(), Text = "restored this ticket" });
+        Record(db, ticket, http.User.UserId(), HistoryKind.Restored, "restored this ticket");
         return await SaveAsync(db, ticket, ct);
+    }
+
+    private static void RequestReviewIfNeeded(WorkDb db, Ticket ticket, TicketStatus statusBefore, Guid? qaBefore, Guid actor)
+    {
+        if (TicketLifecycle.ShouldRequestReview(statusBefore, ticket.Status, qaBefore, ticket.QaOwnerId) && ticket.QaOwnerId != actor)
+        {
+            db.Publish(new TicketReadyForReview(ticket.Id, ticket.Key, ticket.Title, ticket.QaOwnerId!.Value, actor));
+        }
     }
 
     private static void RaiseEstimateAlert(WorkDb db, Ticket ticket)
@@ -402,7 +462,8 @@ public static class Tickets
         JiraDuration.TryParse(estimate, out var minutes) ? minutes : null;
 
     private static async Task<string?> ValidateAsync(
-        WorkDb db, Guid projectId, string? title, Guid? assigneeId, string? estimate, IReadOnlyList<Guid>? labelIds, CancellationToken ct)
+        WorkDb db, Guid projectId, string? title, Guid? assigneeId, string? estimate, IReadOnlyList<Guid>? labelIds,
+        CancellationToken ct, Guid? qaOwnerId = null)
     {
         if (string.IsNullOrWhiteSpace(title) || title.Trim().Length > 255)
         {
@@ -416,6 +477,11 @@ public static class Tickets
             && !await db.ProjectMembers.AnyAsync(member => member.ProjectId == projectId && member.UserId == assigneeId, ct))
         {
             return "The assignee must be a member of this project.";
+        }
+        if (qaOwnerId is not null
+            && !await db.ProjectMembers.AnyAsync(member => member.ProjectId == projectId && member.UserId == qaOwnerId, ct))
+        {
+            return "The QA owner must be a member of this project.";
         }
         if (labelIds is { Count: > 0 })
         {
@@ -493,5 +559,5 @@ public static class Tickets
         ticket.EstimateMinutes is { } estimate ? JiraDuration.Format(estimate) : null,
         JiraDuration.Format(ticket.LoggedMinutes), ticket.DueAt, ticket.Rank,
         ticket.Labels.OrderBy(label => label.Name).Select(label => new LabelView(label.Id, label.Name, label.Color)).ToList(),
-        ticket.DeletedAt);
+        ticket.DeletedAt, Ref(users, ticket.QaOwnerId));
 }

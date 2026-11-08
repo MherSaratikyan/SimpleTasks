@@ -7,7 +7,7 @@ public static class Ui
 {
     public static readonly TicketStatus[] Statuses = Enum.GetValues<TicketStatus>();
 
-    private const string IconSprite = "/icons.svg?v=1";
+    private const string IconSprite = "/icons.svg?v=2";
 
     /// <summary>An icon from the bundled Lucide sprite. Names are fixed strings in our own markup, never user input.</summary>
     public static IHtmlContent Icon(string name, string? css = null) =>
@@ -59,6 +59,7 @@ public static class Ui
         NotificationType.EstimateChanged => "An estimate changes",
         NotificationType.EstimateAlert => "A ticket reaches 80% or exceeds its estimate",
         NotificationType.DueReminder => "Due date reminders",
+        NotificationType.ReviewRequested => "A ticket I'm QA owner for is ready for review",
         _ => "My own reminders"
     };
 

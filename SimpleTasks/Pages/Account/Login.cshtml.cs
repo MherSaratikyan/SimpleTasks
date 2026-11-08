@@ -38,7 +38,7 @@ public class LoginModel(IdentityInternalClient identity, IWebHostEnvironment env
 
     public async Task<IActionResult> OnPostDevAsync(string email, string? returnUrl, CancellationToken ct)
     {
-        if (!environment.IsDevelopment())
+        if (!DevSignInAllowed)
         {
             return NotFound();
         }
@@ -51,9 +51,16 @@ public class LoginModel(IdentityInternalClient identity, IWebHostEnvironment env
         return LocalRedirect(Safe(returnUrl));
     }
 
+    /// <summary>
+    /// The passwordless test accounts include a Site Admin, so they work only in Development
+    /// and only from this computer, never for someone else on the network.
+    /// </summary>
+    private bool DevSignInAllowed =>
+        environment.IsDevelopment() && HttpContext.Connection.RemoteIpAddress is { } address && System.Net.IPAddress.IsLoopback(address);
+
     private async Task LoadDevUsersAsync(CancellationToken ct)
     {
-        if (environment.IsDevelopment())
+        if (DevSignInAllowed)
         {
             DevUsers = await identity.GetDevUsersAsync(ct);
         }

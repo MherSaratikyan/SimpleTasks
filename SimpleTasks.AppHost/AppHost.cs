@@ -12,6 +12,11 @@ var sharedSettings = new ConfigurationBuilder().AddJsonFile(settingsFile, option
 builder.Configuration["Parameters:internal-api-key"] = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 var internalKey = builder.AddParameter("internal-api-key", secret: true);
 
+// PublicUrl is the address people open, such as http://192.168.1.6:5080 for your Wi-Fi. Email links use it.
+// Left unset, the app is reachable from this computer only.
+var publicUrl = (builder.Configuration["PublicUrl"] ?? "http://localhost:5080").TrimEnd('/');
+var onNetwork = !new Uri(publicUrl).IsLoopback;
+
 // UseContainerSql gives a throwaway run: its own SQL Server and broker, nothing kept.
 var throwaway = builder.Configuration.GetValue<bool>("UseContainerSql");
 
@@ -44,6 +49,7 @@ IResourceBuilder<ProjectResource> WithSql(IResourceBuilder<ProjectResource> proj
 }
 
 var identity = WithSql(builder.AddProject<Projects.SimpleTasks_Identity>("identity"))
+    .WithEnvironment("App__BaseUrl", publicUrl)
     .WithEnvironment("Internal__ApiKey", internalKey)
     .WithEnvironment("Identity__FirstAdminEmail", builder.Configuration["FirstAdminEmail"] ?? string.Empty)
     .WithReference(messaging).WaitFor(messaging);
@@ -53,11 +59,22 @@ var work = WithSql(builder.AddProject<Projects.SimpleTasks_Work>("work"))
     .WithReference(identity).WaitFor(identity);
 
 var notifications = WithSql(builder.AddProject<Projects.SimpleTasks_Notifications>("notifications"))
+    .WithEnvironment("App__BaseUrl", publicUrl)
     .WithEnvironment("Reminders__IntervalSeconds", throwaway ? "5" : "60")
     .WithReference(messaging).WaitFor(messaging)
     .WithReference(identity).WaitFor(identity);
 
 builder.AddProject<Projects.SimpleTasks>("web")
+    // Only the web app listens beyond this computer; the services and dashboard stay local.
+    .WithEndpoint("http", endpoint =>
+    {
+        if (onNetwork)
+        {
+            // No Aspire proxy here, so the app sees each visitor's real address.
+            endpoint.IsProxied = false;
+            endpoint.TargetHost = "0.0.0.0";
+        }
+    })
     .WithHttpHealthCheck("/health")
     .WithEnvironment("Internal__ApiKey", internalKey)
     .WithExternalHttpEndpoints()

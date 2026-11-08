@@ -78,6 +78,34 @@ On first start, the Work service copies the rows from your original `Tasks` tabl
 into a project called Simple Tasks (key `ST`). This happens once. The original
 database is only read, so it stays as a fallback.
 
+## Use it on your Wi-Fi
+
+By default only this computer can open the app. To let people on the same network
+use it, set `PublicUrl` to this computer's address on that network. Invite and
+reset links then use that address too.
+
+1. Find this computer's IPv4 address with `ipconfig`, for example `192.168.1.6`.
+2. Set it, with port 5080:
+
+```bash
+dotnet user-secrets set PublicUrl "http://192.168.1.6:5080" --project SimpleTasks.AppHost
+```
+
+3. In Windows, set the Wi-Fi network to **Private**. Public networks block incoming
+   connections whatever the firewall says.
+4. In an administrator PowerShell, allow the port on private networks only:
+
+```powershell
+New-NetFirewallRule -DisplayName "Simple Tasks" -Direction Inbound -Protocol TCP -LocalPort 5080 -Action Allow -Profile Private
+```
+
+5. Restart the app. Others open `http://192.168.1.6:5080`.
+
+Only the web app is opened to the network. The services, the dashboard, and the
+passwordless test accounts stay on this computer. Traffic isn't encrypted, so use
+this on a network you trust. If your router gives this computer a different address
+later, update `PublicUrl`; a DHCP reservation in the router keeps it fixed.
+
 ## Run with Docker Compose
 
 Compose runs its own SQL Server, separate from any server you already have.

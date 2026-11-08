@@ -17,7 +17,7 @@ public class EstimateAlertFlowTests
     {
         var ct = TestContext.Current.CancellationToken;
         var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.SimpleTasks_AppHost>(
-            ["UseContainerSql=true", $"FirstAdminEmail={AdminEmail}"], ct);
+            ["UseContainerSql=true", "PublicUrl=http://localhost:5080", $"FirstAdminEmail={AdminEmail}"], ct);
         await using var app = await builder.BuildAsync(ct);
         await app.StartAsync(ct);
         await app.ResourceNotifications.WaitForResourceHealthyAsync("web", ct);

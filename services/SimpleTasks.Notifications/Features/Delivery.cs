@@ -58,12 +58,13 @@ public interface IEmailSender
     Task SendAsync(EmailMessage email, CancellationToken ct);
 }
 
-public sealed class LogEmailSender(ILogger<LogEmailSender> logger) : IEmailSender
+public sealed class LogEmailSender(ILogger<LogEmailSender> logger, IConfiguration configuration) : IEmailSender
 {
     public Task SendAsync(EmailMessage email, CancellationToken ct)
     {
+        var baseUrl = (configuration["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
         logger.LogInformation("Email (not sent in Development) to {To}: {Subject} - {Body} {Link}",
-            email.To, email.Subject, email.Body, email.LinkPath is null ? string.Empty : $"http://localhost:5080{email.LinkPath}");
+            email.To, email.Subject, email.Body, email.LinkPath is null ? string.Empty : $"{baseUrl}{email.LinkPath}");
         return Task.CompletedTask;
     }
 }

@@ -117,6 +117,8 @@ services:
       # Sign-in cookie keys survive restarts, so nobody is logged out when the container restarts.
       - web-keys:/home/app/.aspnet/DataProtection-Keys
     environment:
+      # Behind Tailscale Funnel or another proxy: use the visitor's address and https scheme it forwards.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       Internal__ApiKey: "${INTERNAL_API_KEY:?Set INTERNAL_API_KEY in .env}"
       services__identity__http__0: "http://identity:8080"
       services__work__http__0: "http://work:8080"
